@@ -1,7 +1,7 @@
 [project]
-name = "sketchup-mcp"
+name = "woody-mcp"
 version = "0.2.0"
-description = "SketchUp integration through Model Context Protocol - for woodworkers and makers"
+description = "AI-powered woodworking assistant for SketchUp Make 2017"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -18,11 +18,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/sketchup-mcp"
-Issues = "https://github.com/yourusername/sketchup-mcp/issues"
+Homepage = "https://github.com/yourusername/woody-mcp"
+Issues = "https://github.com/yourusername/woody-mcp/issues"
 
 [project.scripts]
-sketchup-mcp = "sketchup_mcp.server:main"
+woody-mcp = "sketchup_mcp.server:main"
 
 [project.entry-points.mcp]
 sketchup = "sketchup_mcp.server:mcp"

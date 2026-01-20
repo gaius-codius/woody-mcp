@@ -1,106 +1,101 @@
-# SketchupMCP - Sketchup Model Context Protocol Integration
+# Woody MCP 🪵
 
-SketchupMCP connects Sketchup to Claude AI through the Model Context Protocol (MCP), allowing Claude to directly interact with and control Sketchup. This integration enables prompt-assisted 3D modeling, scene creation, and manipulation in Sketchup.
+AI-powered woodworking assistant for SketchUp Make 2017.
 
-Big Shoutout to [Blender MCP](https://github.com/ahujasid/blender-mcp) for the inspiration and structure.
+Woody connects your AI assistant of choice to SketchUp through MCP, letting you design furniture and woodworking projects with natural language.
+
+## Attribution
+
+Built on [sketchup-mcp](https://github.com/pturczyk/sketchup-mcp).
+Inspired by [Blender MCP](https://github.com/ahujasid/blender-mcp).
 
 ## Features
 
-* **Two-way communication**: Connect Claude AI to Sketchup through a TCP socket connection
-* **Component manipulation**: Create, modify, delete, and transform components in Sketchup
-* **Material control**: Apply and modify materials and colors
-* **Scene inspection**: Get detailed information about the current Sketchup scene
-* **Selection handling**: Get and manipulate selected components
-* **Ruby code evaluation**: Execute arbitrary Ruby code directly in SketchUp for advanced operations
+- **Two-way TCP communication** with SketchUp
+- **Model inspection** and scene info
+- **Export** to SKP, PNG, JPG
+- **Execute Ruby code** for full SketchUp API access
+- **Bundled SketchUp 2017 API reference** so your assistant knows the API
+- **Regional lumber standards** (Currently includes: Australia, North America, UK, Europe)
 
-## Components
+## Roadmap
 
-The system consists of two main components:
+**Coming Soon:**
+- Project templates ("make me a bookshelf")
+- Cut list generation for shopping trips
+- More furniture templates (tables, cabinets, workbenches)
 
-1. **Sketchup Extension**: A Sketchup extension that creates a TCP server within Sketchup to receive and execute commands
-2. **MCP Server (`sketchup_mcp/server.py`)**: A Python server that implements the Model Context Protocol and connects to the Sketchup extension
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `describe_model` | Get model info, entities, selection |
+| `export_scene` | Export to .skp/.png/.jpg |
+| `eval_ruby` | Run Ruby code in SketchUp |
+
+## Two-Layer Design
+
+Woody works at two levels:
+
+- **Templates** (coming soon): High-level commands like "make me a bookshelf with 3 shelves" that generate complete projects
+- **eval_ruby**: Direct access to the SketchUp Ruby API for advanced users. Bundled API docs as reference to write SketchUp Ruby code.
 
 ## Installation
 
-### Python Packaging
+### Requirements
 
-We're using uv so you'll need to ```brew install uv```
+- SketchUp Make 2017 (free version works great)
+- Python 3.10+
+- uv (`brew install uv` on macOS)
 
-### Sketchup Extension
+### SketchUp Extension
 
-1. Download or build the latest `.rbz` file
-2. In Sketchup, go to Window > Extension Manager
-3. Click "Install Extension" and select the downloaded `.rbz` file
-4. Restart Sketchup
+1. Download the latest `.rbz` file from releases
+2. In SketchUp: Window > Extension Manager
+3. Click "Install Extension" and select the `.rbz` file
+4. Restart SketchUp
 
-## Usage
+### Claude Desktop Configuration
+
+Add to your Claude Desktop config:
+
+```json
+{
+    "mcpServers": {
+        "woody": {
+            "command": "uvx",
+            "args": ["woody-mcp"]
+        }
+    }
+}
+```
 
 ### Starting the Connection
 
-1. In Sketchup, go to Extensions > SketchupMCP > Start Server
-2. The server will start on the default port (9876)
-3. Make sure the MCP server is running in your terminal
+1. In SketchUp: Extensions > SketchupMCP > Start Server
+2. The server starts on port 9876
+3. AI assistant will connect automatically when you chat
 
-### Using with Claude
+## Example Prompts
 
-Configure Claude to use the MCP server by adding the following to your Claude configuration:
+Try asking:
 
-```json
-    "mcpServers": {
-        "sketchup": {
-            "command": "uvx",
-            "args": [
-                "sketchup-mcp"
-            ]
-        }
-    }
-```
+- "What components are in my model?"
+- "Export my design as a PNG"
+- "Create a simple box joint box" (uses eval_ruby)
+- "Show me the model dimensions"
+- "Make the selected component 2 inches taller"
 
-This will pull the [latest from PyPI](https://pypi.org/project/sketchup-mcp/)
-
-Once connected, Claude can interact with Sketchup using the following capabilities:
-
-#### Tools
-
-* `get_scene_info` - Gets information about the current Sketchup scene
-* `get_selected_components` - Gets information about currently selected components
-* `create_component` - Create a new component with specified parameters
-* `delete_component` - Remove a component from the scene
-* `transform_component` - Move, rotate, or scale a component
-* `set_material` - Apply materials to components
-* `export_scene` - Export the current scene to various formats
-* `eval_ruby` - Execute arbitrary Ruby code in SketchUp for advanced operations
-
-### Example Commands
-
-Here are some examples of what you can ask Claude to do:
-
-* "Create a simple house model with a roof and windows"
-* "Select all components and get their information"
-* "Make the selected component red"
-* "Move the selected component 10 units up"
-* "Export the current scene as a 3D model"
-* "Create a complex arts and crafts cabinet using Ruby code"
+**Coming in Phase 2:**
+- "Make me a bookshelf with 3 shelves"
+- "Generate a cut list for this project"
 
 ## Troubleshooting
 
-* **Connection issues**: Make sure both the Sketchup extension server and the MCP server are running
-* **Command failures**: Check the Ruby Console in Sketchup for error messages
-* **Timeout errors**: Try simplifying your requests or breaking them into smaller steps
-
-## Technical Details
-
-### Communication Protocol
-
-The system uses a simple JSON-based protocol over TCP sockets:
-
-* **Commands** are sent as JSON objects with a `type` and optional `params`
-* **Responses** are JSON objects with a `status` and `result` or `message`
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- **Connection issues**: Make sure the SketchUp extension server is running (Extensions > SketchupMCP > Start Server)
+- **Command failures**: Check the Ruby Console in SketchUp (Window > Ruby Console) for error messages
+- **Timeout errors**: Try simplifying your requests or breaking them into smaller steps
 
 ## License
 
-MIT 
+MIT
