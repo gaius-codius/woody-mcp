@@ -10,6 +10,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional
 
+from . import __version__
 from .connection import get_connection, close_connection
 from .tools import eval_ruby as eval_ruby_tool
 from .tools import describe_model as describe_model_tool
@@ -22,8 +23,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("SketchupMCPServer")
 
-__version__ = "0.2.0"
-
 
 @asynccontextmanager
 async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
@@ -31,6 +30,8 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
     logger.info(f"SketchUp MCP Server v{__version__} starting")
 
     # Try to connect on startup (non-fatal if it fails)
+    # Note: connect() is blocking but acceptable for startup.
+    # Consider asyncio.to_thread() if connection latency becomes an issue.
     try:
         connection = get_connection()
         if connection.connect():
@@ -112,7 +113,7 @@ def describe_model(ctx: Context, include_details: bool = False) -> str:
 @mcp.tool()
 def export_scene(
     ctx: Context,
-    format: str = "skp",
+    export_format: str = "skp",
     width: Optional[int] = None,
     height: Optional[int] = None
 ) -> str:
@@ -120,7 +121,7 @@ def export_scene(
     Export the current SketchUp model to a file.
 
     Args:
-        format: Export format - "skp", "png", or "jpg"
+        export_format: Export format - "skp", "png", or "jpg"
         width: Image width in pixels (for png/jpg, default 1920)
         height: Image height in pixels (for png/jpg, default 1080)
 
@@ -128,7 +129,7 @@ def export_scene(
         JSON with success status and file path
     """
     return export_scene_tool.export_scene(
-        format=format,
+        export_format=export_format,
         width=width,
         height=height,
         request_id=ctx.request_id

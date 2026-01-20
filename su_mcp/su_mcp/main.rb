@@ -51,48 +51,56 @@ module SU_MCP
               ready = IO.select([@server], nil, nil, 0)
               if ready
                 log "Connection waiting..."
-                client = @server.accept_nonblock
-                log "Client accepted"
+                client = nil
+                begin
+                  client = @server.accept_nonblock
+                  log "Client accepted"
 
-                data = client.gets
-                log "Raw data: #{data.inspect}"
-
-                if data
-                  begin
-                    request = JSON.parse(data)
-                    log "Parsed request: #{request.inspect}"
-
-                    response = handle_request(request)
-                    response_json = response.to_json + "\n"
-
-                    log "Sending response: #{response_json.strip}"
-                    client.write(response_json)
-                    client.flush
-                    log "Response sent"
-                  rescue JSON::ParserError => e
-                    log "JSON parse error: #{e.message}"
-                    error_response = {
-                      jsonrpc: "2.0",
-                      error: { code: -32700, message: "Parse error: #{e.message}" },
-                      id: nil
-                    }.to_json + "\n"
-                    client.write(error_response)
-                    client.flush
-                  rescue StandardError => e
-                    log "Request error: #{e.message}"
-                    log e.backtrace.first(5).join("\n")
-                    error_response = {
-                      jsonrpc: "2.0",
-                      error: { code: -32603, message: e.message },
-                      id: request ? request["id"] : nil
-                    }.to_json + "\n"
-                    client.write(error_response)
-                    client.flush
+                  unless authenticate(client)
+                    log "Authentication failed"
+                    next
                   end
-                end
 
-                client.close
-                log "Client closed"
+                  data = client.gets
+                  log "Raw data: #{data.inspect}"
+
+                  if data
+                    begin
+                      request = JSON.parse(data)
+                      log "Parsed request: #{request.inspect}"
+
+                      response = handle_request(request)
+                      response_json = response.to_json + "\n"
+
+                      log "Sending response: #{response_json.strip}"
+                      client.write(response_json)
+                      client.flush
+                      log "Response sent"
+                    rescue JSON::ParserError => e
+                      log "JSON parse error: #{e.message}"
+                      error_response = {
+                        jsonrpc: "2.0",
+                        error: { code: -32700, message: "Parse error: #{e.message}" },
+                        id: nil
+                      }.to_json + "\n"
+                      client.write(error_response)
+                      client.flush
+                    rescue StandardError => e
+                      log "Request error: #{e.message}"
+                      log e.backtrace.first(5).join("\n")
+                      error_response = {
+                        jsonrpc: "2.0",
+                        error: { code: -32603, message: e.message },
+                        id: request ? request["id"] : nil
+                      }.to_json + "\n"
+                      client.write(error_response)
+                      client.flush
+                    end
+                  end
+                ensure
+                  client&.close
+                  log "Client closed" if client
+                end
               end
             end
           rescue IO::WaitReadable
@@ -127,6 +135,17 @@ module SU_MCP
     end
 
     private
+
+    def authenticate(client)
+      secret = ENV['SKETCHUP_MCP_SECRET']
+      return true if secret.nil? || secret.empty?
+
+      auth_data = client.gets
+      return false unless auth_data
+
+      provided = JSON.parse(auth_data)["secret"] rescue nil
+      provided == secret
+    end
 
     def handle_request(request)
       log "Handling request: #{request["method"]}"

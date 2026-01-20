@@ -4,7 +4,9 @@ import socket
 import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
+
+from .config import config
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -32,9 +34,21 @@ class SketchupConnection:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.host, self.port))
             logger.info(f"Connected to SketchUp at {self.host}:{self.port}")
+
+            # Send authentication if secret is configured
+            if config.auth_secret:
+                auth_msg = json.dumps({"secret": config.auth_secret}) + "\n"
+                self.sock.sendall(auth_msg.encode('utf-8'))
+                logger.debug("Sent authentication")
+
             return True
         except Exception as e:
             logger.error(f"Failed to connect to SketchUp: {str(e)}")
+            if self.sock:
+                try:
+                    self.sock.close()
+                except Exception:
+                    pass
             self.sock = None
             return False
 
@@ -142,8 +156,30 @@ class SketchupConnection:
             except json.JSONDecodeError as e:
                 raise Exception(f"Invalid response from SketchUp: {str(e)}")
 
+        # If we exit the loop without returning, reconnection failed
+        raise ConnectionError("Failed to reconnect to SketchUp after connection loss")
+
+
+def parse_tool_response(result: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Extract success status and text from standard tool response.
+
+    Args:
+        result: Response dict from send_command()
+
+    Returns:
+        Tuple of (success: bool, text: str)
+    """
+    content = result.get("content", [])
+    if isinstance(content, list) and content:
+        text = content[0].get("text", "")
+        is_error = result.get("isError", False)
+        return (not is_error, text)
+    return (False, "No response from SketchUp")
+
 
 # Global connection instance
+# TODO Phase 2: Refactor to dependency injection via FastMCP context
 _connection: Optional[SketchupConnection] = None
 
 
