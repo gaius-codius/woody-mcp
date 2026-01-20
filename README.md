@@ -95,7 +95,3 @@ Try asking:
 - **Connection issues**: Make sure the SketchUp extension server is running (Extensions > SketchupMCP > Start Server)
 - **Command failures**: Check the Ruby Console in SketchUp (Window > Ruby Console) for error messages
 - **Timeout errors**: Try simplifying your requests or breaking them into smaller steps
-
-## License
-
-MIT
