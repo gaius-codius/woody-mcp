@@ -4,13 +4,14 @@ import json
 import logging
 from typing import Any, Optional
 
-from ..connection import get_connection
+from ..config import config
+from ..connection import get_connection, parse_tool_response
 
 logger = logging.getLogger("SketchupMCPServer")
 
 
 def export_scene(
-    format: str = "skp",
+    export_format: str = "skp",
     width: Optional[int] = None,
     height: Optional[int] = None,
     request_id: Any = None
@@ -19,7 +20,7 @@ def export_scene(
     Export the current SketchUp model to a file.
 
     Args:
-        format: Export format - "skp" (SketchUp), "png", or "jpg"
+        export_format: Export format - "skp" (SketchUp), "png", or "jpg"
         width: Image width in pixels (for png/jpg exports)
         height: Image height in pixels (for png/jpg exports)
         request_id: Optional request ID for tracking
@@ -32,19 +33,33 @@ def export_scene(
         - png: PNG image (supports transparency)
         - jpg/jpeg: JPEG image
     """
-    format = format.lower()
+    export_format = export_format.lower()
     valid_formats = ["skp", "png", "jpg", "jpeg"]
 
-    if format not in valid_formats:
+    if export_format not in valid_formats:
         return json.dumps({
             "success": False,
-            "error": f"Unsupported format: {format}. Valid formats: {', '.join(valid_formats)}"
+            "error": f"Unsupported format: {export_format}. Valid formats: {', '.join(valid_formats)}"
         })
 
-    try:
-        logger.info(f"export_scene: format={format}")
+    # Validate image dimensions
+    if width is not None:
+        if not (config.min_image_dimension <= width <= config.max_image_dimension):
+            return json.dumps({
+                "success": False,
+                "error": f"Width must be between {config.min_image_dimension} and {config.max_image_dimension}"
+            })
+    if height is not None:
+        if not (config.min_image_dimension <= height <= config.max_image_dimension):
+            return json.dumps({
+                "success": False,
+                "error": f"Height must be between {config.min_image_dimension} and {config.max_image_dimension}"
+            })
 
-        arguments = {"format": format}
+    try:
+        logger.info(f"export_scene: format={export_format}")
+
+        arguments = {"format": export_format}
         if width:
             arguments["width"] = width
         if height:
@@ -57,36 +72,16 @@ def export_scene(
             request_id=request_id
         )
 
-        # Extract the text result
-        content = result.get("content", [])
-        if isinstance(content, list) and len(content) > 0:
-            text = content[0].get("text", "")
-            is_error = result.get("isError", False)
+        success, text = parse_tool_response(result)
+        if not success:
+            return json.dumps({"success": False, "error": text})
 
-            if is_error:
-                return json.dumps({
-                    "success": False,
-                    "error": text
-                })
-            else:
-                # Parse the path from the response
-                if "Exported to:" in text:
-                    path = text.replace("Exported to:", "").strip()
-                    return json.dumps({
-                        "success": True,
-                        "path": path,
-                        "format": format
-                    })
-                else:
-                    return json.dumps({
-                        "success": True,
-                        "result": text
-                    })
+        # Parse the path from the response
+        if "Exported to:" in text:
+            path = text.replace("Exported to:", "").strip()
+            return json.dumps({"success": True, "path": path, "format": export_format})
         else:
-            return json.dumps({
-                "success": False,
-                "error": "No response from SketchUp"
-            })
+            return json.dumps({"success": True, "result": text})
 
     except ConnectionError as e:
         logger.error(f"export_scene connection error: {str(e)}")

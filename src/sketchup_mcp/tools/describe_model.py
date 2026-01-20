@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any
 
-from ..connection import get_connection
+from ..connection import get_connection, parse_tool_response
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -36,22 +36,21 @@ def describe_model(include_details: bool = False, request_id: Any = None) -> str
             request_id=request_id
         )
 
-        # Extract the text result
-        content = result.get("content", [])
-        if isinstance(content, list) and len(content) > 0:
-            text = content[0].get("text", "{}")
+        success, text = parse_tool_response(result)
+        if success:
             # The Ruby side returns JSON, pass it through
             return text
         else:
-            return json.dumps({"error": "No response from SketchUp"})
+            return json.dumps({"success": False, "error": text})
 
     except ConnectionError as e:
         logger.error(f"describe_model connection error: {str(e)}")
         return json.dumps({
+            "success": False,
             "error": str(e),
             "hint": "Make sure SketchUp is running with the MCP extension started"
         })
 
     except Exception as e:
         logger.error(f"describe_model error: {str(e)}")
-        return json.dumps({"error": str(e)})
+        return json.dumps({"success": False, "error": str(e)})

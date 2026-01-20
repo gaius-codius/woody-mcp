@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Dict, Any
 
-from ..connection import get_connection
+from ..connection import get_connection, parse_tool_response
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -44,27 +44,11 @@ def eval_ruby(code: str, request_id: Any = None) -> str:
             request_id=request_id
         )
 
-        # Extract the text result from the response
-        content = result.get("content", [])
-        if isinstance(content, list) and len(content) > 0:
-            text = content[0].get("text", "")
-            is_error = result.get("isError", False)
-
-            if is_error:
-                return json.dumps({
-                    "success": False,
-                    "error": text
-                })
-            else:
-                return json.dumps({
-                    "success": True,
-                    "result": text
-                })
+        success, text = parse_tool_response(result)
+        if success:
+            return json.dumps({"success": True, "result": text})
         else:
-            return json.dumps({
-                "success": True,
-                "result": str(result)
-            })
+            return json.dumps({"success": False, "error": text})
 
     except ConnectionError as e:
         logger.error(f"eval_ruby connection error: {str(e)}")
