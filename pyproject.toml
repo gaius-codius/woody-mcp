@@ -1,7 +1,7 @@
 [project]
 name = "sketchup-mcp"
-version = "0.1.17"
-description = "Sketchup integration through Model Context Protocol"
+version = "0.2.0"
+description = "SketchUp integration through Model Context Protocol - for woodworkers and makers"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

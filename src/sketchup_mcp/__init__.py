@@ -1,6 +1,12 @@
-"""Sketchup integration through Model Context Protocol"""
+"""
+SketchUp MCP - Model Context Protocol server for SketchUp
 
-__version__ = "0.1.17"
+A tool for integrating SketchUp with Claude, designed for woodworkers,
+makers, and beginners using SketchUp Make 2017.
+"""
 
-# Expose key classes and functions for easier imports
-from .server import mcp 
+__version__ = "0.2.0"
+
+from .server import mcp, main
+
+__all__ = ["mcp", "main", "__version__"]

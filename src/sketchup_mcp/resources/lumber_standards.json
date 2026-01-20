@@ -1,0 +1,126 @@
+{
+  "australia": {
+    "name": "Australia",
+    "units": "mm",
+    "description": "Australian standard timber sizes (actual dimensions in mm)",
+    "common_lumber": {
+      "structural": [
+        {"name": "90x45", "width": 90, "thickness": 45, "type": "framing"},
+        {"name": "140x45", "width": 140, "thickness": 45, "type": "framing"},
+        {"name": "190x45", "width": 190, "thickness": 45, "type": "framing"},
+        {"name": "240x45", "width": 240, "thickness": 45, "type": "framing"},
+        {"name": "290x45", "width": 290, "thickness": 45, "type": "framing"},
+        {"name": "70x35", "width": 70, "thickness": 35, "type": "light_framing"},
+        {"name": "90x35", "width": 90, "thickness": 35, "type": "light_framing"}
+      ],
+      "boards": [
+        {"name": "90x19", "width": 90, "thickness": 19, "type": "board"},
+        {"name": "140x19", "width": 140, "thickness": 19, "type": "board"},
+        {"name": "190x19", "width": 190, "thickness": 19, "type": "board"},
+        {"name": "240x19", "width": 240, "thickness": 19, "type": "board"},
+        {"name": "90x12", "width": 90, "thickness": 12, "type": "board"},
+        {"name": "140x12", "width": 140, "thickness": 12, "type": "board"}
+      ],
+      "hardwood": [
+        {"name": "42x19", "width": 42, "thickness": 19, "type": "hardwood"},
+        {"name": "67x19", "width": 67, "thickness": 19, "type": "hardwood"},
+        {"name": "92x19", "width": 92, "thickness": 19, "type": "hardwood"},
+        {"name": "42x42", "width": 42, "thickness": 42, "type": "hardwood"},
+        {"name": "67x67", "width": 67, "thickness": 67, "type": "hardwood"}
+      ]
+    },
+    "sheet_goods": {
+      "standard_size": [2400, 1200],
+      "plywood_thickness": [3, 6, 9, 12, 15, 18, 25],
+      "mdf_thickness": [3, 6, 9, 12, 16, 18, 25, 32]
+    }
+  },
+  "north_america": {
+    "name": "North America",
+    "units": "inches",
+    "description": "North American lumber sizes (nominal → actual in mm)",
+    "common_lumber": {
+      "dimensional": [
+        {"name": "2x4", "nominal": "2x4", "width": 89, "thickness": 38, "type": "framing"},
+        {"name": "2x6", "nominal": "2x6", "width": 140, "thickness": 38, "type": "framing"},
+        {"name": "2x8", "nominal": "2x8", "width": 184, "thickness": 38, "type": "framing"},
+        {"name": "2x10", "nominal": "2x10", "width": 235, "thickness": 38, "type": "framing"},
+        {"name": "2x12", "nominal": "2x12", "width": 286, "thickness": 38, "type": "framing"},
+        {"name": "4x4", "nominal": "4x4", "width": 89, "thickness": 89, "type": "post"}
+      ],
+      "boards": [
+        {"name": "1x4", "nominal": "1x4", "width": 89, "thickness": 19, "type": "board"},
+        {"name": "1x6", "nominal": "1x6", "width": 140, "thickness": 19, "type": "board"},
+        {"name": "1x8", "nominal": "1x8", "width": 184, "thickness": 19, "type": "board"},
+        {"name": "1x10", "nominal": "1x10", "width": 235, "thickness": 19, "type": "board"},
+        {"name": "1x12", "nominal": "1x12", "width": 286, "thickness": 19, "type": "board"}
+      ],
+      "hardwood": [
+        {"name": "4/4", "thickness": 25, "type": "hardwood", "description": "1 inch rough"},
+        {"name": "5/4", "thickness": 32, "type": "hardwood", "description": "1.25 inch rough"},
+        {"name": "6/4", "thickness": 38, "type": "hardwood", "description": "1.5 inch rough"},
+        {"name": "8/4", "thickness": 51, "type": "hardwood", "description": "2 inch rough"}
+      ]
+    },
+    "sheet_goods": {
+      "standard_size": [2440, 1220],
+      "plywood_thickness": [6, 9, 12, 15, 18, 25],
+      "mdf_thickness": [6, 9, 12, 16, 19, 25]
+    }
+  },
+  "uk": {
+    "name": "United Kingdom",
+    "units": "mm",
+    "description": "UK standard timber sizes (actual dimensions in mm)",
+    "common_lumber": {
+      "structural": [
+        {"name": "47x100", "width": 100, "thickness": 47, "type": "framing"},
+        {"name": "47x150", "width": 150, "thickness": 47, "type": "framing"},
+        {"name": "47x200", "width": 200, "thickness": 47, "type": "framing"},
+        {"name": "47x225", "width": 225, "thickness": 47, "type": "framing"}
+      ],
+      "boards": [
+        {"name": "22x100", "width": 100, "thickness": 22, "type": "board"},
+        {"name": "22x150", "width": 150, "thickness": 22, "type": "board"},
+        {"name": "22x200", "width": 200, "thickness": 22, "type": "board"},
+        {"name": "25x100", "width": 100, "thickness": 25, "type": "board"},
+        {"name": "25x150", "width": 150, "thickness": 25, "type": "board"}
+      ],
+      "pse": [
+        {"name": "44x44", "width": 44, "thickness": 44, "type": "pse", "description": "Planed Square Edge"},
+        {"name": "44x69", "width": 69, "thickness": 44, "type": "pse"},
+        {"name": "44x94", "width": 94, "thickness": 44, "type": "pse"}
+      ]
+    },
+    "sheet_goods": {
+      "standard_size": [2440, 1220],
+      "plywood_thickness": [6, 9, 12, 18, 25],
+      "mdf_thickness": [6, 9, 12, 18, 25]
+    }
+  },
+  "europe": {
+    "name": "Europe",
+    "units": "mm",
+    "description": "European standard timber sizes (actual dimensions in mm)",
+    "common_lumber": {
+      "structural": [
+        {"name": "45x95", "width": 95, "thickness": 45, "type": "framing"},
+        {"name": "45x145", "width": 145, "thickness": 45, "type": "framing"},
+        {"name": "45x195", "width": 195, "thickness": 45, "type": "framing"},
+        {"name": "45x245", "width": 245, "thickness": 45, "type": "framing"}
+      ],
+      "boards": [
+        {"name": "21x95", "width": 95, "thickness": 21, "type": "board"},
+        {"name": "21x145", "width": 145, "thickness": 21, "type": "board"},
+        {"name": "21x195", "width": 195, "thickness": 21, "type": "board"},
+        {"name": "27x95", "width": 95, "thickness": 27, "type": "board"},
+        {"name": "27x145", "width": 145, "thickness": 27, "type": "board"}
+      ]
+    },
+    "sheet_goods": {
+      "standard_size": [2500, 1250],
+      "plywood_thickness": [4, 6, 9, 12, 15, 18, 21, 24],
+      "mdf_thickness": [6, 9, 12, 16, 19, 22, 25]
+    }
+  }
+}
