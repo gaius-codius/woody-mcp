@@ -14,7 +14,7 @@ def load_lumber_standards() -> dict:
     """Load regional lumber standards from resources."""
     resources_path = Path(__file__).parent.parent / "resources" / "lumber_standards.json"
     try:
-        with open(resources_path) as f:
+        with open(resources_path, encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         logger.warning(f"Could not load lumber standards: {e}")
@@ -170,16 +170,20 @@ result.to_json
         })
 
     except ConnectionError as e:
-        logger.error(f"get_cut_list connection error: {str(e)}")
+        logger.error(f"get_cut_list connection error: {e}")
         return json.dumps({
             "success": False,
             "error": str(e),
             "hint": "Make sure SketchUp is running with the MCP extension started"
         })
 
-    except Exception as e:
-        logger.error(f"get_cut_list error: {str(e)}")
+    except (ValueError, TypeError, KeyError) as e:
+        logger.warning(f"get_cut_list data error: {e}")
         return json.dumps({
             "success": False,
             "error": str(e)
         })
+
+    except Exception as e:
+        logger.exception(f"get_cut_list unexpected error: {e}")
+        raise

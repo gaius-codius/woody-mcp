@@ -66,6 +66,23 @@ class BoxTemplate(BaseTemplate):
             if self.has_lid:
                 box_height -= wall_thickness  # Account for lid
 
+            # Validate dimensions
+            if box_height <= 0:
+                min_height = bottom_thickness + wall_thickness + 1 if self.has_lid else bottom_thickness + 1
+                return TemplateResult(
+                    success=False,
+                    error=f"Height {self.height}mm is too small for a box with {wall_thickness}mm lumber"
+                          f"{' and lid' if self.has_lid else ''}. Minimum height required: {min_height}mm"
+                )
+
+            if interior_width <= 0 or interior_depth <= 0:
+                min_dim = (2 * wall_thickness) + 1
+                return TemplateResult(
+                    success=False,
+                    error=f"Width ({self.width}mm) or depth ({self.depth}mm) is too small for {wall_thickness}mm lumber. "
+                          f"Minimum required: {min_dim}mm"
+                )
+
             # Build cut list
             cut_list = [
                 LumberPiece(
@@ -180,9 +197,12 @@ class BoxTemplate(BaseTemplate):
                 cut_list=cut_list
             )
 
-        except Exception as e:
-            logger.error(f"Box template error: {str(e)}")
+        except ValueError as e:
+            logger.warning(f"Box template validation error: {e}")
             return TemplateResult(
                 success=False,
                 error=str(e)
             )
+        except Exception as e:
+            logger.exception(f"Box template unexpected error: {e}")
+            raise

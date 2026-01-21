@@ -1,11 +1,9 @@
 """Base template class for woodworking project templates."""
 
-import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
-from pathlib import Path
 
 logger = logging.getLogger("SketchupMCPServer")
 

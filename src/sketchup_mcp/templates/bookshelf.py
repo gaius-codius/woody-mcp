@@ -66,6 +66,16 @@ class BookshelfTemplate(BaseTemplate):
             total_shelf_height = self.shelves * shelf_thickness
             top_bottom_thickness = 2 * shelf_thickness  # Account for top and bottom panels
             available_height = self.height - total_shelf_height - top_bottom_thickness
+
+            # Validate dimensions
+            if available_height <= 0:
+                min_height = total_shelf_height + top_bottom_thickness + (self.shelves + 1)
+                return TemplateResult(
+                    success=False,
+                    error=f"Height {self.height}mm is too small for {self.shelves} shelves with {shelf_thickness}mm lumber. "
+                          f"Minimum height required: {min_height}mm"
+                )
+
             shelf_spacing = available_height / (self.shelves + 1)
 
             # Build cut list
@@ -147,9 +157,9 @@ class BookshelfTemplate(BaseTemplate):
                 x=side_thickness, y=0, z=0
             ))
 
-            # Shelves
+            # Shelves - position above bottom panel
             for i in range(self.shelves):
-                shelf_z = (i + 1) * shelf_spacing + (i * shelf_thickness)
+                shelf_z = shelf_thickness + (i + 1) * shelf_spacing + (i * shelf_thickness)
                 ruby_parts.append(self._create_board_ruby(
                     name=f"Shelf {i + 1}",
                     width=interior_width,
@@ -171,9 +181,12 @@ class BookshelfTemplate(BaseTemplate):
                 cut_list=cut_list
             )
 
-        except Exception as e:
-            logger.error(f"Bookshelf template error: {str(e)}")
+        except ValueError as e:
+            logger.warning(f"Bookshelf template validation error: {e}")
             return TemplateResult(
                 success=False,
                 error=str(e)
             )
+        except Exception as e:
+            logger.exception(f"Bookshelf template unexpected error: {e}")
+            raise

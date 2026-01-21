@@ -111,19 +111,23 @@ def build_project(
             })
 
     except ConnectionError as e:
-        logger.error(f"build_project connection error: {str(e)}")
+        logger.error(f"build_project connection error: {e}")
         return json.dumps({
             "success": False,
             "error": str(e),
             "hint": "Make sure SketchUp is running with the MCP extension started"
         })
 
-    except Exception as e:
-        logger.error(f"build_project error: {str(e)}")
+    except (ValueError, TypeError) as e:
+        logger.warning(f"build_project validation error: {e}")
         return json.dumps({
             "success": False,
             "error": str(e)
         })
+
+    except Exception as e:
+        logger.exception(f"build_project unexpected error: {e}")
+        raise
 
 
 def list_templates() -> str:
@@ -144,8 +148,5 @@ def list_templates() -> str:
             "templates": templates
         })
     except Exception as e:
-        logger.error(f"list_templates error: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e)
-        })
+        logger.exception(f"list_templates unexpected error: {e}")
+        raise
