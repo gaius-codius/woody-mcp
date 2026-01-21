@@ -133,12 +133,19 @@ def list_templates() -> str:
     Returns:
         JSON string with template information
     """
-    templates = []
-    for name, cls in TEMPLATES.items():
-        info = cls.get_template_info()
-        templates.append(info)
+    try:
+        templates = []
+        for name, cls in TEMPLATES.items():
+            info = cls.get_template_info()
+            templates.append(info)
 
-    return json.dumps({
-        "success": True,
-        "templates": templates
-    })
+        return json.dumps({
+            "success": True,
+            "templates": templates
+        })
+    except Exception as e:
+        logger.error(f"list_templates error: {str(e)}")
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        })
