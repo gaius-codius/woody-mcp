@@ -5,7 +5,7 @@ A tool for integrating SketchUp with Claude, designed for woodworkers,
 makers, and beginners using SketchUp Make 2017.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from .server import mcp, main
 
