@@ -15,6 +15,7 @@ from .connection import get_connection, close_connection
 from .tools import eval_ruby as eval_ruby_tool
 from .tools import describe_model as describe_model_tool
 from .tools import export_scene as export_scene_tool
+from .tools import build_project as build_project_tool
 
 # Configure logging
 logging.basicConfig(
@@ -134,6 +135,71 @@ def export_scene(
         height=height,
         request_id=ctx.request_id
     )
+
+
+@mcp.tool()
+def build_project(
+    ctx: Context,
+    template_type: str,
+    width: Optional[float] = None,
+    height: Optional[float] = None,
+    depth: Optional[float] = None,
+    lumber: str = "90x19",
+    joinery: Optional[str] = None,
+    material: str = "pine",
+    region: str = "australia",
+    options: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Build a woodworking project from a template.
+
+    Creates complete 3D models in SketchUp from predefined templates.
+    Templates include furniture (bookshelf, table) and small projects (box, cutting board).
+
+    Args:
+        template_type: Type of project - "bookshelf", "box", etc.
+        width: Width in mm (uses template default if not specified)
+        height: Height in mm (uses template default if not specified)
+        depth: Depth in mm (uses template default if not specified)
+        lumber: Lumber size (e.g., "90x19" for Australia, "2x4" for North America)
+        joinery: Joint type - "butt", "dado", "finger_joint", "mortise_tenon", etc.
+        material: Wood species - "pine", "oak", "walnut", etc.
+        region: Region for lumber standards - "australia", "north_america", "uk", "europe"
+        options: Template-specific options (e.g., {"shelves": 4} for bookshelf)
+
+    Returns:
+        JSON with success status, cut_list with lumber requirements, and dimensions
+
+    Examples:
+        build_project("bookshelf", width=600, height=1000, depth=300, options={"shelves": 3})
+        build_project("box", width=200, height=100, depth=150, options={"has_lid": True})
+    """
+    return build_project_tool.build_project(
+        template_type=template_type,
+        width=width,
+        height=height,
+        depth=depth,
+        lumber=lumber,
+        joinery=joinery,
+        material=material,
+        region=region,
+        options=options,
+        request_id=ctx.request_id
+    )
+
+
+@mcp.tool()
+def list_templates(ctx: Context) -> str:
+    """
+    List all available project templates.
+
+    Returns information about each template including name, description,
+    and default joinery type.
+
+    Returns:
+        JSON with list of available templates
+    """
+    return build_project_tool.list_templates()
 
 
 # =============================================================================
