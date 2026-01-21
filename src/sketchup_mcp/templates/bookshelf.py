@@ -64,7 +64,8 @@ class BookshelfTemplate(BaseTemplate):
 
             # Shelf spacing (evenly distributed)
             total_shelf_height = self.shelves * shelf_thickness
-            available_height = self.height - total_shelf_height
+            top_bottom_thickness = 2 * shelf_thickness  # Account for top and bottom panels
+            available_height = self.height - total_shelf_height - top_bottom_thickness
             shelf_spacing = available_height / (self.shelves + 1)
 
             # Build cut list
@@ -90,7 +91,7 @@ class BookshelfTemplate(BaseTemplate):
                 LumberPiece(
                     name="Top Panel",
                     width=self.lumber_width,
-                    height=self.width,
+                    height=interior_width,
                     length=self.depth,
                     quantity=1,
                     material=self.material,
@@ -99,7 +100,7 @@ class BookshelfTemplate(BaseTemplate):
                 LumberPiece(
                     name="Bottom Panel",
                     width=self.lumber_width,
-                    height=self.width,
+                    height=interior_width,
                     length=self.depth,
                     quantity=1,
                     material=self.material,
