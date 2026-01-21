@@ -16,6 +16,7 @@ from .tools import eval_ruby as eval_ruby_tool
 from .tools import describe_model as describe_model_tool
 from .tools import export_scene as export_scene_tool
 from .tools import build_project as build_project_tool
+from .tools import get_cut_list as get_cut_list_tool
 
 # Configure logging
 logging.basicConfig(
@@ -200,6 +201,42 @@ def list_templates(ctx: Context) -> str:
         JSON with list of available templates
     """
     return build_project_tool.list_templates()
+
+
+@mcp.tool()
+def get_cut_list(
+    ctx: Context,
+    region: str = "australia",
+    include_hardware: bool = False
+) -> str:
+    """
+    Generate a lumber shopping list from the current SketchUp model.
+
+    Analyzes all groups and components, extracts dimensions, and formats
+    them as a cut list with quantities. Similar pieces are grouped together.
+
+    Args:
+        region: Region for lumber sizing - "australia", "north_america", "uk", "europe"
+        include_hardware: Include hardware notes from component names
+
+    Returns:
+        JSON with cut_list array, total pieces, and total volume
+
+    Example output:
+        {
+            "cut_list": [
+                {"dimensions": "19x90x1000mm", "quantity": 2, "parts": ["Left Side", "Right Side"]},
+                {"dimensions": "19x90x562mm", "quantity": 4, "parts": ["Shelf 1", "Shelf 2", ...]}
+            ],
+            "total_pieces": 6,
+            "total_volume": "0.0123 cubic meters"
+        }
+    """
+    return get_cut_list_tool.get_cut_list(
+        region=region,
+        include_hardware=include_hardware,
+        request_id=ctx.request_id
+    )
 
 
 # =============================================================================
