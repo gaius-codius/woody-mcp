@@ -199,16 +199,17 @@ result.to_json
             total_m3 = total_volume_mm3 / (1000**3)
             total_measure = f"{total_m3:.4f} cubic meters"
 
-        return json.dumps(
-            {
-                "success": True,
-                "cut_list": cut_list,
-                "total_pieces": sum(item["quantity"] for item in cut_list),
-                "total_volume": total_measure,
-                "region": region,
-                "units": units,
-            }
-        )
+        response = {
+            "success": True,
+            "cut_list": cut_list,
+            "total_pieces": sum(item["quantity"] for item in cut_list),
+            "total_volume": total_measure,
+            "region": region,
+            "units": units,
+        }
+        if region_warning:
+            response["warning"] = region_warning
+        return json.dumps(response)
 
     except ConnectionError as e:
         logger.error(f"get_cut_list connection error: {e}")

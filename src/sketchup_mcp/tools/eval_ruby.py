@@ -23,7 +23,11 @@ def eval_ruby(code: str, request_id: Any = None) -> str:
         request_id: Optional request ID for tracking
 
     Returns:
-        JSON string with success status and result/error
+        JSON string with success status and result/error for expected conditions
+        (empty code, connection errors, timeouts, JSON decode errors)
+
+    Raises:
+        Exception: Unexpected errors are re-raised for debugging purposes
 
     Example:
         eval_ruby("Sketchup.active_model.entities.length")
