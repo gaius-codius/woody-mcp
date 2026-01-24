@@ -36,3 +36,7 @@ Thumbs.db
 
 # Local development docs
 docs/
+
+# Claude Code
+.claude/
+CLAUDE.md

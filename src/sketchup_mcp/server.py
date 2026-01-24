@@ -20,8 +20,7 @@ from .tools import get_cut_list as get_cut_list_tool
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -54,15 +53,13 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
 
 
 # Create MCP server
-mcp = FastMCP(
-    "SketchupMCP",
-    lifespan=server_lifespan
-)
+mcp = FastMCP("SketchupMCP", lifespan=server_lifespan)
 
 
 # =============================================================================
 # Tool Definitions
 # =============================================================================
+
 
 @mcp.tool()
 def eval_ruby(ctx: Context, code: str) -> str:
@@ -107,8 +104,7 @@ def describe_model(ctx: Context, include_details: bool = False) -> str:
         - bounds: Model bounding box dimensions
     """
     return describe_model_tool.describe_model(
-        include_details=include_details,
-        request_id=ctx.request_id
+        include_details=include_details, request_id=ctx.request_id
     )
 
 
@@ -117,7 +113,7 @@ def export_scene(
     ctx: Context,
     export_format: str = "skp",
     width: Optional[int] = None,
-    height: Optional[int] = None
+    height: Optional[int] = None,
 ) -> str:
     """
     Export the current SketchUp model to a file.
@@ -134,7 +130,7 @@ def export_scene(
         export_format=export_format,
         width=width,
         height=height,
-        request_id=ctx.request_id
+        request_id=ctx.request_id,
     )
 
 
@@ -149,7 +145,7 @@ def build_project(
     joinery: Optional[str] = None,
     material: str = "pine",
     region: str = "australia",
-    options: Optional[Dict[str, Any]] = None
+    options: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Build a woodworking project from a template.
@@ -185,7 +181,7 @@ def build_project(
         material=material,
         region=region,
         options=options,
-        request_id=ctx.request_id
+        request_id=ctx.request_id,
     )
 
 
@@ -205,9 +201,7 @@ def list_templates(ctx: Context) -> str:
 
 @mcp.tool()
 def get_cut_list(
-    ctx: Context,
-    region: str = "australia",
-    include_hardware: bool = False
+    ctx: Context, region: str = "australia", include_hardware: bool = False
 ) -> str:
     """
     Generate a lumber shopping list from the current SketchUp model.
@@ -233,15 +227,14 @@ def get_cut_list(
         }
     """
     return get_cut_list_tool.get_cut_list(
-        region=region,
-        include_hardware=include_hardware,
-        request_id=ctx.request_id
+        region=region, include_hardware=include_hardware, request_id=ctx.request_id
     )
 
 
 # =============================================================================
 # Entry Point
 # =============================================================================
+
 
 def main():
     """Run the MCP server"""

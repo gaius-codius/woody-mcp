@@ -33,7 +33,7 @@ def describe_model(include_details: bool = False, request_id: Any = None) -> str
         result = connection.send_command(
             tool_name="describe_model",
             arguments={"include_details": include_details},
-            request_id=request_id
+            request_id=request_id,
         )
 
         success, text = parse_tool_response(result)
@@ -45,11 +45,13 @@ def describe_model(include_details: bool = False, request_id: Any = None) -> str
 
     except ConnectionError as e:
         logger.error(f"describe_model connection error: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "hint": "Make sure SketchUp is running with the MCP extension started"
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "hint": "Make sure SketchUp is running with the MCP extension started",
+            }
+        )
 
     except Exception as e:
         logger.error(f"describe_model error: {str(e)}")
