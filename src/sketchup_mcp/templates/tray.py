@@ -57,7 +57,9 @@ class TrayTemplate(BaseTemplate):
             **kwargs,
         )
         self.has_handles = has_handles
-        self.wall_height = min(wall_height, height - 5)  # Leave room for bottom
+        self.wall_height = min(
+            wall_height, height - self.lumber_thickness
+        )  # Leave room for bottom
         self.has_dividers = has_dividers
         self.divider_count = max(1, int(divider_count))
 

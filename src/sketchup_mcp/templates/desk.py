@@ -119,8 +119,8 @@ class DeskTemplate(BaseTemplate):
                 LumberPiece(
                     name="Back Rail",
                     width=self.lumber_width,
-                    height=self.width - (2 * panel_thickness),
-                    length=self.lumber_width,
+                    height=self.lumber_width,
+                    length=self.width - (2 * panel_thickness),
                     quantity=1,
                     material=self.material,
                     notes="Connects leg panels at back",

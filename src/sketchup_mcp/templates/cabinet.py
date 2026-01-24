@@ -287,7 +287,7 @@ class CabinetTemplate(BaseTemplate):
             if self.has_doors:
                 door_gap = 3
                 for i in range(self.door_count):
-                    door_x = i * door_width + (door_gap / 2 if i > 0 else 0)
+                    door_x = i * door_width + (door_gap / 2)
                     actual_door_width = door_width - door_gap
                     ruby_parts.append(
                         self._create_board_ruby(

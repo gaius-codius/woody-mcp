@@ -119,8 +119,8 @@ class PictureFrameTemplate(BaseTemplate):
                 LumberPiece(
                     name="Glass",
                     width=3,  # Standard picture glass
-                    height=inner_width + 5,  # Slight overlap into rabbet
-                    length=inner_height + 5,
+                    height=inner_width + 4,  # Slight overlap into rabbet
+                    length=inner_height + 4,
                     quantity=1,
                     material="glass",
                     notes="Cut by glass shop to fit rabbet",
@@ -128,8 +128,8 @@ class PictureFrameTemplate(BaseTemplate):
                 LumberPiece(
                     name="Backing Board",
                     width=3,  # MDF or cardboard
-                    height=inner_width + 5,
-                    length=inner_height + 5,
+                    height=inner_width + 4,
+                    length=inner_height + 4,
                     quantity=1,
                     material="mdf",
                     notes="Holds picture in place, secured with points",

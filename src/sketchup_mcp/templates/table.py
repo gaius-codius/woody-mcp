@@ -116,7 +116,7 @@ class TableTemplate(BaseTemplate):
             cut_list = [
                 LumberPiece(
                     name="Tabletop",
-                    width=self.lumber_width,
+                    width=tabletop_thickness,
                     height=self.width,
                     length=self.depth,
                     quantity=1,

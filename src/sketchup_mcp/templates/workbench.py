@@ -118,7 +118,7 @@ class WorkbenchTemplate(BaseTemplate):
             cut_list = [
                 LumberPiece(
                     name="Benchtop",
-                    width=self.lumber_width,
+                    width=self.top_thickness,
                     height=self.width,
                     length=self.depth,
                     quantity=1,
@@ -207,7 +207,7 @@ class WorkbenchTemplate(BaseTemplate):
                 cut_list.append(
                     LumberPiece(
                         name="Lower Shelf",
-                        width=self.lumber_width,
+                        width=self.lumber_thickness,
                         height=shelf_width,
                         length=shelf_depth,
                         quantity=1,

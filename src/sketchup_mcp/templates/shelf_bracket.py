@@ -76,13 +76,8 @@ class ShelfBracketTemplate(BaseTemplate):
             shelf_thickness = board_thickness
             shelf_depth = self.depth
 
-            # Bracket spacing
-            if self.bracket_count > 1:
-                bracket_spacing = (self.width - board_thickness) / (
-                    self.bracket_count - 1
-                )
-            else:
-                bracket_spacing = 0
+            # Bracket spacing (bracket_count is always >= 2)
+            bracket_spacing = (self.width - board_thickness) / (self.bracket_count - 1)
 
             # Validate dimensions
             if vertical_length < 100:
@@ -128,7 +123,7 @@ class ShelfBracketTemplate(BaseTemplate):
                             length=diagonal_length,
                             quantity=self.bracket_count,
                             material=self.material,
-                            notes="45° cuts on both ends",
+                            notes=f"Angled cuts on both ends ({math.degrees(math.atan2(vertical_length, horizontal_length)):.1f}°)",
                         ),
                     ]
                 )
