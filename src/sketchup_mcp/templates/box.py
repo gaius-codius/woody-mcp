@@ -1,4 +1,4 @@
-"""Box template - storage boxes with finger joints."""
+"""Box template - storage boxes with panels positioned for finger joint assembly."""
 
 import logging
 from typing import Optional
@@ -9,7 +9,7 @@ logger = logging.getLogger("SketchupMCPServer")
 
 
 class BoxTemplate(BaseTemplate):
-    """Template for creating boxes with finger joints."""
+    """Template for creating boxes with panels positioned for joinery."""
 
     template_name = "box"
     description = "Storage box with optional lid"
@@ -25,7 +25,7 @@ class BoxTemplate(BaseTemplate):
         joinery: Optional[str] = None,
         material: str = "pine",
         region: str = "australia",
-        **kwargs
+        **kwargs,
     ):
         """
         Create a box template.
@@ -48,7 +48,7 @@ class BoxTemplate(BaseTemplate):
             joinery=joinery,
             material=material,
             region=region,
-            **kwargs
+            **kwargs,
         )
         self.has_lid = has_lid
 
@@ -68,11 +68,15 @@ class BoxTemplate(BaseTemplate):
 
             # Validate dimensions
             if box_height <= 0:
-                min_height = bottom_thickness + wall_thickness + 1 if self.has_lid else bottom_thickness + 1
+                min_height = (
+                    bottom_thickness + wall_thickness + 1
+                    if self.has_lid
+                    else bottom_thickness + 1
+                )
                 return TemplateResult(
                     success=False,
                     error=f"Height {self.height}mm is too small for a box with {wall_thickness}mm lumber"
-                          f"{' and lid' if self.has_lid else ''}. Minimum height required: {min_height}mm"
+                    f"{' and lid' if self.has_lid else ''}. Minimum height required: {min_height}mm",
                 )
 
             if interior_width <= 0 or interior_depth <= 0:
@@ -80,7 +84,7 @@ class BoxTemplate(BaseTemplate):
                 return TemplateResult(
                     success=False,
                     error=f"Width ({self.width}mm) or depth ({self.depth}mm) is too small for {wall_thickness}mm lumber. "
-                          f"Minimum required: {min_dim}mm"
+                    f"Minimum required: {min_dim}mm",
                 )
 
             # Build cut list
@@ -92,7 +96,7 @@ class BoxTemplate(BaseTemplate):
                     length=box_height,
                     quantity=2,
                     material=self.material,
-                    notes=f"Front and back, {self.joinery}"
+                    notes=f"Front and back, {self.joinery}",
                 ),
                 LumberPiece(
                     name="Side Panel",
@@ -101,7 +105,7 @@ class BoxTemplate(BaseTemplate):
                     length=box_height,
                     quantity=2,
                     material=self.material,
-                    notes=f"Left and right sides, {self.joinery}"
+                    notes=f"Left and right sides, {self.joinery}",
                 ),
                 LumberPiece(
                     name="Bottom",
@@ -110,99 +114,117 @@ class BoxTemplate(BaseTemplate):
                     length=interior_depth,
                     quantity=1,
                     material=self.material,
-                    notes="Bottom panel, rabbeted into sides"
-                )
+                    notes="Bottom panel, sized to fit inside walls",
+                ),
             ]
 
             if self.has_lid:
-                cut_list.append(LumberPiece(
-                    name="Lid",
-                    width=self.lumber_width,
-                    height=self.width + 10,  # Slight overhang
-                    length=self.depth + 10,
-                    quantity=1,
-                    material=self.material,
-                    notes="Lid with slight overhang"
-                ))
+                cut_list.append(
+                    LumberPiece(
+                        name="Lid",
+                        width=self.lumber_width,
+                        height=self.width + 10,  # Slight overhang
+                        length=self.depth + 10,
+                        quantity=1,
+                        material=self.material,
+                        notes="Lid with slight overhang",
+                    )
+                )
 
             # Generate Ruby code
             ruby_parts = []
 
             # Front panel
-            ruby_parts.append(self._create_board_ruby(
-                name="Front",
-                width=self.width,
-                height=box_height,
-                depth=wall_thickness,
-                x=0, y=0, z=bottom_thickness
-            ))
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Front",
+                    width=self.width,
+                    height=box_height,
+                    depth=wall_thickness,
+                    x=0,
+                    y=0,
+                    z=bottom_thickness,
+                )
+            )
 
             # Back panel
-            ruby_parts.append(self._create_board_ruby(
-                name="Back",
-                width=self.width,
-                height=box_height,
-                depth=wall_thickness,
-                x=0, y=self.depth - wall_thickness, z=bottom_thickness
-            ))
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Back",
+                    width=self.width,
+                    height=box_height,
+                    depth=wall_thickness,
+                    x=0,
+                    y=self.depth - wall_thickness,
+                    z=bottom_thickness,
+                )
+            )
 
             # Left side
-            ruby_parts.append(self._create_board_ruby(
-                name="Left Side",
-                width=wall_thickness,
-                height=box_height,
-                depth=interior_depth,
-                x=0, y=wall_thickness, z=bottom_thickness
-            ))
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Left Side",
+                    width=wall_thickness,
+                    height=box_height,
+                    depth=interior_depth,
+                    x=0,
+                    y=wall_thickness,
+                    z=bottom_thickness,
+                )
+            )
 
             # Right side
-            ruby_parts.append(self._create_board_ruby(
-                name="Right Side",
-                width=wall_thickness,
-                height=box_height,
-                depth=interior_depth,
-                x=self.width - wall_thickness, y=wall_thickness, z=bottom_thickness
-            ))
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Right Side",
+                    width=wall_thickness,
+                    height=box_height,
+                    depth=interior_depth,
+                    x=self.width - wall_thickness,
+                    y=wall_thickness,
+                    z=bottom_thickness,
+                )
+            )
 
             # Bottom
-            ruby_parts.append(self._create_board_ruby(
-                name="Bottom",
-                width=interior_width,
-                height=bottom_thickness,
-                depth=interior_depth,
-                x=wall_thickness, y=wall_thickness, z=0
-            ))
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Bottom",
+                    width=interior_width,
+                    height=bottom_thickness,
+                    depth=interior_depth,
+                    x=wall_thickness,
+                    y=wall_thickness,
+                    z=0,
+                )
+            )
 
             # Lid (offset slightly above)
             if self.has_lid:
                 lid_z = bottom_thickness + box_height + 20  # 20mm gap for visibility
-                ruby_parts.append(self._create_board_ruby(
-                    name="Lid",
-                    width=self.width + 10,
-                    height=wall_thickness,
-                    depth=self.depth + 10,
-                    x=-5, y=-5, z=lid_z
-                ))
+                ruby_parts.append(
+                    self._create_board_ruby(
+                        name="Lid",
+                        width=self.width + 10,
+                        height=wall_thickness,
+                        depth=self.depth + 10,
+                        x=-5,
+                        y=-5,
+                        z=lid_z,
+                    )
+                )
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)
             ruby_code = self._wrap_in_operation(
-                ruby_code,
-                f"Box {int(self.width)}x{int(self.height)}x{int(self.depth)}"
+                ruby_code, f"Box {int(self.width)}x{int(self.height)}x{int(self.depth)}"
             )
 
-            return TemplateResult(
-                success=True,
-                ruby_code=ruby_code,
-                cut_list=cut_list
-            )
+            return TemplateResult(success=True, ruby_code=ruby_code, cut_list=cut_list)
 
         except ValueError as e:
             logger.warning(f"Box template validation error: {e}")
-            return TemplateResult(
-                success=False,
-                error=str(e)
-            )
+            return TemplateResult(success=False, error=str(e))
         except Exception as e:
             logger.exception(f"Box template unexpected error: {e}")
             raise

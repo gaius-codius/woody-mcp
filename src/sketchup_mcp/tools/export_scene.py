@@ -2,6 +2,7 @@
 
 import json
 import logging
+import socket
 from typing import Any, Optional
 
 from ..config import config
@@ -14,7 +15,7 @@ def export_scene(
     export_format: str = "skp",
     width: Optional[int] = None,
     height: Optional[int] = None,
-    request_id: Any = None
+    request_id: Any = None,
 ) -> str:
     """
     Export the current SketchUp model to a file.
@@ -37,24 +38,30 @@ def export_scene(
     valid_formats = ["skp", "png", "jpg", "jpeg"]
 
     if export_format not in valid_formats:
-        return json.dumps({
-            "success": False,
-            "error": f"Unsupported format: {export_format}. Valid formats: {', '.join(valid_formats)}"
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Unsupported format: {export_format}. Valid formats: {', '.join(valid_formats)}",
+            }
+        )
 
     # Validate image dimensions
     if width is not None:
         if not (config.min_image_dimension <= width <= config.max_image_dimension):
-            return json.dumps({
-                "success": False,
-                "error": f"Width must be between {config.min_image_dimension} and {config.max_image_dimension}"
-            })
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"Width must be between {config.min_image_dimension} and {config.max_image_dimension}",
+                }
+            )
     if height is not None:
         if not (config.min_image_dimension <= height <= config.max_image_dimension):
-            return json.dumps({
-                "success": False,
-                "error": f"Height must be between {config.min_image_dimension} and {config.max_image_dimension}"
-            })
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"Height must be between {config.min_image_dimension} and {config.max_image_dimension}",
+                }
+            )
 
     try:
         logger.info(f"export_scene: format={export_format}")
@@ -67,9 +74,7 @@ def export_scene(
 
         connection = get_connection()
         result = connection.send_command(
-            tool_name="export_scene",
-            arguments=arguments,
-            request_id=request_id
+            tool_name="export_scene", arguments=arguments, request_id=request_id
         )
 
         success, text = parse_tool_response(result)
@@ -85,15 +90,19 @@ def export_scene(
 
     except ConnectionError as e:
         logger.error(f"export_scene connection error: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "hint": "Make sure SketchUp is running with the MCP extension started"
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "hint": "Make sure SketchUp is running with the MCP extension started",
+            }
+        )
+
+    except (socket.timeout, json.JSONDecodeError) as e:
+        logger.error(f"export_scene communication error: {str(e)}")
+        return json.dumps({"success": False, "error": f"Communication error: {str(e)}"})
 
     except Exception as e:
-        logger.error(f"export_scene error: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e)
-        })
+        # Let unexpected errors propagate for debugging
+        logger.exception(f"export_scene unexpected error: {str(e)}")
+        raise
