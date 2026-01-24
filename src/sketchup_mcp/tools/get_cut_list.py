@@ -11,21 +11,33 @@ logger = logging.getLogger("SketchupMCPServer")
 
 
 def load_lumber_standards() -> dict:
-    """Load regional lumber standards from resources."""
-    resources_path = Path(__file__).parent.parent / "resources" / "lumber_standards.json"
+    """
+    Load regional lumber standards from resources.
+
+    Returns:
+        Dict of regional lumber standards
+
+    Raises:
+        ValueError: If standards file is missing or corrupted
+    """
+    resources_path = (
+        Path(__file__).parent.parent / "resources" / "lumber_standards.json"
+    )
     try:
-        with open(resources_path, encoding='utf-8') as f:
+        with open(resources_path, encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
-        logger.warning(f"Could not load lumber standards: {e}")
-        return {}
+    except FileNotFoundError:
+        logger.error(f"Lumber standards file not found at {resources_path}")
+        raise ValueError(
+            f"Regional lumber standards configuration is missing. "
+            f"Expected file at: {resources_path}"
+        )
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in lumber standards file: {e}")
+        raise ValueError(f"Regional lumber standards file is corrupted: {e}")
 
 
-def get_cut_list(
-    region: str = "australia",
-    include_hardware: bool = False,
-    request_id: Any = None
-) -> str:
+def get_cut_list(region: str = "australia", request_id: Any = None) -> str:
     """
     Generate a cut list (lumber shopping list) from the current SketchUp model.
 
@@ -34,7 +46,6 @@ def get_cut_list(
 
     Args:
         region: Region for lumber sizing ("australia", "north_america", "uk", "europe")
-        include_hardware: Include hardware notes if present in component names
         request_id: Optional request ID for tracking
 
     Returns:
@@ -45,11 +56,35 @@ def get_cut_list(
 
         # Load lumber standards for region
         standards = load_lumber_standards()
-        region_data = standards.get(region, standards.get("australia", {}))
+
+        # Validate region
+        if region not in standards:
+            available_regions = list(standards.keys())
+            if "australia" in standards:
+                logger.warning(
+                    f"Unknown region '{region}', falling back to australia. "
+                    f"Available: {available_regions}"
+                )
+                region_data = standards["australia"]
+                region_warning = (
+                    f"Note: Region '{region}' not found, using Australian standards"
+                )
+            else:
+                return json.dumps(
+                    {
+                        "success": False,
+                        "error": f"Unknown region '{region}' and no fallback available. "
+                        f"Valid regions: {', '.join(available_regions)}",
+                    }
+                )
+        else:
+            region_data = standards[region]
+            region_warning = None
+
         units = region_data.get("units", "mm")
 
-        # Ruby code to extract all groups with their bounding box dimensions
-        ruby_code = '''
+        # Ruby code to extract all groups and components with their bounding box dimensions
+        ruby_code = """
 result = []
 model = Sketchup.active_model
 entities = model.active_entities
@@ -85,39 +120,37 @@ entities.grep(Sketchup::ComponentInstance).each do |comp|
 end
 
 result.to_json
-'''
+"""
 
         connection = get_connection()
         eval_result = connection.send_command(
-            tool_name="eval_ruby",
-            arguments={"code": ruby_code},
-            request_id=request_id
+            tool_name="eval_ruby", arguments={"code": ruby_code}, request_id=request_id
         )
 
         success, text = parse_tool_response(eval_result)
 
         if not success:
-            return json.dumps({
-                "success": False,
-                "error": f"Failed to analyze model: {text}"
-            })
+            return json.dumps(
+                {"success": False, "error": f"Failed to analyze model: {text}"}
+            )
 
         # Parse the result
         try:
             pieces = json.loads(text)
         except json.JSONDecodeError:
-            return json.dumps({
-                "success": False,
-                "error": f"Invalid response from SketchUp: {text}"
-            })
+            return json.dumps(
+                {"success": False, "error": f"Invalid response from SketchUp: {text}"}
+            )
 
         if not pieces:
-            return json.dumps({
-                "success": True,
-                "cut_list": [],
-                "message": "No groups or components found in model",
-                "region": region
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "cut_list": [],
+                    "message": "No groups or components found in model",
+                    "region": region,
+                }
+            )
 
         # Group similar pieces
         grouped = {}
@@ -132,7 +165,7 @@ result.to_json
                     "width": piece["width"],
                     "thickness": piece["thickness"],
                     "quantity": 1,
-                    "names": [piece["name"]]
+                    "names": [piece["name"]],
                 }
 
         # Format cut list
@@ -140,49 +173,57 @@ result.to_json
         total_volume_mm3 = 0
 
         for dims, data in sorted(grouped.items(), key=lambda x: -x[0][0]):
-            volume = data["length"] * data["width"] * data["thickness"] * data["quantity"]
+            volume = (
+                data["length"] * data["width"] * data["thickness"] * data["quantity"]
+            )
             total_volume_mm3 += volume
 
-            cut_list.append({
-                "dimensions": f"{data['thickness']:.0f}x{data['width']:.0f}x{data['length']:.0f}mm",
-                "quantity": data["quantity"],
-                "parts": data["names"],
-                "notes": ""
-            })
+            cut_list.append(
+                {
+                    "dimensions": f"{data['thickness']:.0f}x{data['width']:.0f}x{data['length']:.0f}mm",
+                    "quantity": data["quantity"],
+                    "parts": data["names"],
+                    "notes": "",
+                }
+            )
 
         # Calculate board feet (for North America) or cubic meters
         if region == "north_america":
             # Board feet = (thickness_in × width_in × length_in) / 144
-            total_board_feet = total_volume_mm3 / (25.4 ** 3) / 144
+            # Convert mm³ to in³: divide by 25.4³ (mm per inch, cubed)
+            # Then divide by 144 (12×12) for board feet formula
+            total_board_feet = total_volume_mm3 / (25.4**3) / 144
             total_measure = f"{total_board_feet:.2f} board feet"
         else:
             # Cubic meters
-            total_m3 = total_volume_mm3 / (1000 ** 3)
+            total_m3 = total_volume_mm3 / (1000**3)
             total_measure = f"{total_m3:.4f} cubic meters"
 
-        return json.dumps({
+        response = {
             "success": True,
             "cut_list": cut_list,
             "total_pieces": sum(item["quantity"] for item in cut_list),
             "total_volume": total_measure,
             "region": region,
-            "units": units
-        })
+            "units": units,
+        }
+        if region_warning:
+            response["warning"] = region_warning
+        return json.dumps(response)
 
     except ConnectionError as e:
         logger.error(f"get_cut_list connection error: {e}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "hint": "Make sure SketchUp is running with the MCP extension started"
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "hint": "Make sure SketchUp is running with the MCP extension started",
+            }
+        )
 
     except (ValueError, TypeError, KeyError) as e:
         logger.warning(f"get_cut_list data error: {e}")
-        return json.dumps({
-            "success": False,
-            "error": str(e)
-        })
+        return json.dumps({"success": False, "error": str(e)})
 
     except Exception as e:
         logger.exception(f"get_cut_list unexpected error: {e}")

@@ -20,7 +20,7 @@ def build_project(
     material: str = "pine",
     region: str = "australia",
     options: Optional[Dict[str, Any]] = None,
-    request_id: Any = None
+    request_id: Any = None,
 ) -> str:
     """
     Build a woodworking project from a template.
@@ -43,15 +43,19 @@ def build_project(
     # Validate template type
     if not template_type or template_type.lower() not in TEMPLATES:
         available = ", ".join(TEMPLATES.keys())
-        return json.dumps({
-            "success": False,
-            "error": f"Unknown template type: '{template_type}'. Available: {available}"
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Unknown template type: '{template_type}'. Available: {available}",
+            }
+        )
 
     template_class = TEMPLATES[template_type.lower()]
 
     try:
-        logger.info(f"build_project: template={template_type}, {width}x{height}x{depth}")
+        logger.info(
+            f"build_project: template={template_type}, {width}x{height}x{depth}"
+        )
 
         # Build kwargs, only including specified values
         kwargs = {
@@ -76,54 +80,54 @@ def build_project(
         result: TemplateResult = template.generate()
 
         if not result.success:
-            return json.dumps({
-                "success": False,
-                "error": result.error
-            })
+            return json.dumps({"success": False, "error": result.error})
 
         # Execute the Ruby code via eval_ruby
         connection = get_connection()
         eval_result = connection.send_command(
             tool_name="eval_ruby",
             arguments={"code": result.ruby_code},
-            request_id=request_id
+            request_id=request_id,
         )
 
         success, text = parse_tool_response(eval_result)
 
         if success:
-            return json.dumps({
-                "success": True,
-                "result": text,
-                "cut_list": result.to_dict()["cut_list"],
-                "template": template_type,
-                "dimensions": {
-                    "width": template.width,
-                    "height": template.height,
-                    "depth": template.depth
+            return json.dumps(
+                {
+                    "success": True,
+                    "result": text,
+                    "cut_list": result.to_dict()["cut_list"],
+                    "template": template_type,
+                    "dimensions": {
+                        "width": template.width,
+                        "height": template.height,
+                        "depth": template.depth,
+                    },
                 }
-            })
+            )
         else:
-            return json.dumps({
-                "success": False,
-                "error": f"SketchUp error: {text}",
-                "ruby_code": result.ruby_code  # Include for debugging
-            })
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"SketchUp error: {text}",
+                    "ruby_code": result.ruby_code,  # Include for debugging
+                }
+            )
 
     except ConnectionError as e:
         logger.error(f"build_project connection error: {e}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "hint": "Make sure SketchUp is running with the MCP extension started"
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "hint": "Make sure SketchUp is running with the MCP extension started",
+            }
+        )
 
     except (ValueError, TypeError) as e:
         logger.warning(f"build_project validation error: {e}")
-        return json.dumps({
-            "success": False,
-            "error": str(e)
-        })
+        return json.dumps({"success": False, "error": str(e)})
 
     except Exception as e:
         logger.exception(f"build_project unexpected error: {e}")
@@ -143,10 +147,7 @@ def list_templates() -> str:
             info = cls.get_template_info()
             templates.append(info)
 
-        return json.dumps({
-            "success": True,
-            "templates": templates
-        })
+        return json.dumps({"success": True, "templates": templates})
     except Exception as e:
         logger.exception(f"list_templates unexpected error: {e}")
         raise

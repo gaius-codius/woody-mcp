@@ -24,7 +24,7 @@ class SketchupConnection:
         if self.sock:
             try:
                 self.sock.settimeout(0.1)
-                self.sock.send(b'')
+                self.sock.send(b"")
                 return True
             except (socket.error, BrokenPipeError, ConnectionResetError):
                 logger.info("Connection test failed, reconnecting...")
@@ -38,7 +38,7 @@ class SketchupConnection:
             # Send authentication if secret is configured
             if config.auth_secret:
                 auth_msg = json.dumps({"secret": config.auth_secret}) + "\n"
-                self.sock.sendall(auth_msg.encode('utf-8'))
+                self.sock.sendall(auth_msg.encode("utf-8"))
                 logger.debug("Sent authentication")
 
             return True
@@ -47,8 +47,10 @@ class SketchupConnection:
             if self.sock:
                 try:
                     self.sock.close()
-                except Exception:
-                    pass
+                except OSError as e:
+                    logger.debug(f"Expected error closing socket: {e}")
+                except Exception as e:
+                    logger.warning(f"Unexpected error closing socket: {e}")
             self.sock = None
             return False
 
@@ -80,62 +82,64 @@ class SketchupConnection:
 
                     # Try to parse as JSON to check if complete
                     try:
-                        data = b''.join(chunks)
-                        json.loads(data.decode('utf-8'))
+                        data = b"".join(chunks)
+                        json.loads(data.decode("utf-8"))
                         return data
                     except json.JSONDecodeError:
                         continue
 
                 except socket.timeout:
+                    logger.debug(
+                        "Socket timeout while receiving - checking if response complete"
+                    )
                     break
                 except (ConnectionError, BrokenPipeError, ConnectionResetError) as e:
                     raise Exception(f"Connection error: {str(e)}")
 
         except socket.timeout:
-            pass
+            logger.warning(
+                "Socket timeout while receiving response - response may be incomplete"
+            )
 
         if chunks:
-            data = b''.join(chunks)
+            data = b"".join(chunks)
             try:
-                json.loads(data.decode('utf-8'))
+                json.loads(data.decode("utf-8"))
                 return data
             except json.JSONDecodeError:
-                raise Exception("Incomplete JSON response")
+                raise Exception(
+                    "Incomplete JSON response (possible timeout). "
+                    "Large operations may need to be broken into smaller chunks."
+                )
         else:
-            raise Exception("No data received")
+            raise Exception("No data received (connection may have timed out)")
 
     def send_command(
-        self,
-        tool_name: str,
-        arguments: Dict[str, Any] = None,
-        request_id: Any = None
+        self, tool_name: str, arguments: Dict[str, Any] = None, request_id: Any = None
     ) -> Dict[str, Any]:
         """Send a tool command to SketchUp and return the response"""
         if not self.connect():
             raise ConnectionError(
                 "Could not connect to SketchUp. "
                 "Make sure SketchUp is running and the MCP extension is started "
-                "(Plugins → MCP Server → Start Server)"
+                "(Extensions → SketchupMCP → Start Server)"
             )
 
         request = {
             "jsonrpc": "2.0",
             "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments or {}
-            },
-            "id": request_id
+            "params": {"name": tool_name, "arguments": arguments or {}},
+            "id": request_id,
         }
 
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
-                request_bytes = json.dumps(request).encode('utf-8') + b'\n'
+                request_bytes = json.dumps(request).encode("utf-8") + b"\n"
                 self.sock.sendall(request_bytes)
 
                 response_data = self._receive_full_response()
-                response = json.loads(response_data.decode('utf-8'))
+                response = json.loads(response_data.decode("utf-8"))
 
                 if "error" in response:
                     error_msg = response["error"].get("message", "Unknown error")
@@ -143,9 +147,16 @@ class SketchupConnection:
 
                 return response.get("result", {})
 
-            except (socket.timeout, ConnectionError, BrokenPipeError, ConnectionResetError) as e:
+            except (
+                socket.timeout,
+                ConnectionError,
+                BrokenPipeError,
+                ConnectionResetError,
+            ) as e:
                 if attempt < max_retries:
-                    logger.warning(f"Connection error (attempt {attempt + 1}): {str(e)}")
+                    logger.warning(
+                        f"Connection error (attempt {attempt + 1}): {str(e)}"
+                    )
                     self.disconnect()
                     if not self.connect():
                         break
@@ -179,7 +190,6 @@ def parse_tool_response(result: Dict[str, Any]) -> Tuple[bool, str]:
 
 
 # Global connection instance
-# TODO Phase 2: Refactor to dependency injection via FastMCP context
 _connection: Optional[SketchupConnection] = None
 
 

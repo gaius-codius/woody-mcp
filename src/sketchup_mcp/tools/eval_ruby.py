@@ -2,7 +2,8 @@
 
 import json
 import logging
-from typing import Dict, Any
+import socket
+from typing import Any
 
 from ..connection import get_connection, parse_tool_response
 
@@ -22,26 +23,25 @@ def eval_ruby(code: str, request_id: Any = None) -> str:
         request_id: Optional request ID for tracking
 
     Returns:
-        JSON string with success status and result/error
+        JSON string with success status and result/error for expected conditions
+        (empty code, connection errors, timeouts, JSON decode errors)
+
+    Raises:
+        Exception: Unexpected errors are re-raised for debugging purposes
 
     Example:
         eval_ruby("Sketchup.active_model.entities.length")
         eval_ruby("model = Sketchup.active_model; model.entities.add_face([0,0,0], [10,0,0], [10,10,0], [0,10,0])")
     """
     if not code or not code.strip():
-        return json.dumps({
-            "success": False,
-            "error": "No code provided"
-        })
+        return json.dumps({"success": False, "error": "No code provided"})
 
     try:
         logger.info(f"eval_ruby: executing {len(code)} chars of Ruby code")
 
         connection = get_connection()
         result = connection.send_command(
-            tool_name="eval_ruby",
-            arguments={"code": code},
-            request_id=request_id
+            tool_name="eval_ruby", arguments={"code": code}, request_id=request_id
         )
 
         success, text = parse_tool_response(result)
@@ -52,15 +52,19 @@ def eval_ruby(code: str, request_id: Any = None) -> str:
 
     except ConnectionError as e:
         logger.error(f"eval_ruby connection error: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "hint": "Make sure SketchUp is running with the MCP extension started"
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "hint": "Make sure SketchUp is running with the MCP extension started",
+            }
+        )
+
+    except (socket.timeout, json.JSONDecodeError) as e:
+        logger.error(f"eval_ruby communication error: {str(e)}")
+        return json.dumps({"success": False, "error": f"Communication error: {str(e)}"})
 
     except Exception as e:
-        logger.error(f"eval_ruby error: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e)
-        })
+        # Let unexpected errors propagate for debugging
+        logger.exception(f"eval_ruby unexpected error: {str(e)}")
+        raise

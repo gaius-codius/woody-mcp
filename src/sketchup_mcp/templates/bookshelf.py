@@ -1,4 +1,4 @@
-"""Bookshelf template - adjustable shelves with dado joints."""
+"""Bookshelf template - shelves positioned for dado joint assembly."""
 
 import logging
 from typing import Optional
@@ -9,7 +9,7 @@ logger = logging.getLogger("SketchupMCPServer")
 
 
 class BookshelfTemplate(BaseTemplate):
-    """Template for creating bookshelves with adjustable shelves."""
+    """Template for creating bookshelves with fixed shelf positions."""
 
     template_name = "bookshelf"
     description = "Bookshelf with adjustable shelves"
@@ -25,7 +25,7 @@ class BookshelfTemplate(BaseTemplate):
         joinery: Optional[str] = None,
         material: str = "pine",
         region: str = "australia",
-        **kwargs
+        **kwargs,
     ):
         """
         Create a bookshelf template.
@@ -48,7 +48,7 @@ class BookshelfTemplate(BaseTemplate):
             joinery=joinery,
             material=material,
             region=region,
-            **kwargs
+            **kwargs,
         )
         self.shelves = max(1, int(shelves))
 
@@ -64,16 +64,20 @@ class BookshelfTemplate(BaseTemplate):
 
             # Shelf spacing (evenly distributed)
             total_shelf_height = self.shelves * shelf_thickness
-            top_bottom_thickness = 2 * shelf_thickness  # Account for top and bottom panels
+            top_bottom_thickness = (
+                2 * shelf_thickness
+            )  # Account for top and bottom panels
             available_height = self.height - total_shelf_height - top_bottom_thickness
 
             # Validate dimensions
             if available_height <= 0:
-                min_height = total_shelf_height + top_bottom_thickness + (self.shelves + 1)
+                min_height = (
+                    total_shelf_height + top_bottom_thickness + (self.shelves + 1)
+                )
                 return TemplateResult(
                     success=False,
                     error=f"Height {self.height}mm is too small for {self.shelves} shelves with {shelf_thickness}mm lumber. "
-                          f"Minimum height required: {min_height}mm"
+                    f"Minimum height required: {min_height}mm",
                 )
 
             shelf_spacing = available_height / (self.shelves + 1)
@@ -87,7 +91,7 @@ class BookshelfTemplate(BaseTemplate):
                     length=self.depth,
                     quantity=2,
                     material=self.material,
-                    notes="Left and right sides"
+                    notes="Left and right sides",
                 ),
                 LumberPiece(
                     name="Shelf",
@@ -96,7 +100,7 @@ class BookshelfTemplate(BaseTemplate):
                     length=self.depth,
                     quantity=self.shelves,
                     material=self.material,
-                    notes=f"Adjustable shelves, {self.joinery} joints"
+                    notes=f"Fixed shelves, {self.joinery} joints",
                 ),
                 LumberPiece(
                     name="Top Panel",
@@ -105,7 +109,7 @@ class BookshelfTemplate(BaseTemplate):
                     length=self.depth,
                     quantity=1,
                     material=self.material,
-                    notes="Top of bookshelf"
+                    notes="Top of bookshelf",
                 ),
                 LumberPiece(
                     name="Bottom Panel",
@@ -114,79 +118,94 @@ class BookshelfTemplate(BaseTemplate):
                     length=self.depth,
                     quantity=1,
                     material=self.material,
-                    notes="Bottom of bookshelf"
-                )
+                    notes="Bottom of bookshelf",
+                ),
             ]
 
             # Generate Ruby code
             ruby_parts = []
 
             # Left side
-            ruby_parts.append(self._create_board_ruby(
-                name="Left Side",
-                width=side_thickness,
-                height=self.height,
-                depth=self.depth,
-                x=0, y=0, z=0
-            ))
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Left Side",
+                    width=side_thickness,
+                    height=self.height,
+                    depth=self.depth,
+                    x=0,
+                    y=0,
+                    z=0,
+                )
+            )
 
             # Right side
-            ruby_parts.append(self._create_board_ruby(
-                name="Right Side",
-                width=side_thickness,
-                height=self.height,
-                depth=self.depth,
-                x=self.width - side_thickness, y=0, z=0
-            ))
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Right Side",
+                    width=side_thickness,
+                    height=self.height,
+                    depth=self.depth,
+                    x=self.width - side_thickness,
+                    y=0,
+                    z=0,
+                )
+            )
 
             # Top
-            ruby_parts.append(self._create_board_ruby(
-                name="Top",
-                width=interior_width,
-                height=shelf_thickness,
-                depth=self.depth,
-                x=side_thickness, y=0, z=self.height - shelf_thickness
-            ))
-
-            # Bottom
-            ruby_parts.append(self._create_board_ruby(
-                name="Bottom",
-                width=interior_width,
-                height=shelf_thickness,
-                depth=self.depth,
-                x=side_thickness, y=0, z=0
-            ))
-
-            # Shelves - position above bottom panel
-            for i in range(self.shelves):
-                shelf_z = shelf_thickness + (i + 1) * shelf_spacing + (i * shelf_thickness)
-                ruby_parts.append(self._create_board_ruby(
-                    name=f"Shelf {i + 1}",
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Top",
                     width=interior_width,
                     height=shelf_thickness,
                     depth=self.depth,
-                    x=side_thickness, y=0, z=shelf_z
-                ))
+                    x=side_thickness,
+                    y=0,
+                    z=self.height - shelf_thickness,
+                )
+            )
+
+            # Bottom
+            ruby_parts.append(
+                self._create_board_ruby(
+                    name="Bottom",
+                    width=interior_width,
+                    height=shelf_thickness,
+                    depth=self.depth,
+                    x=side_thickness,
+                    y=0,
+                    z=0,
+                )
+            )
+
+            # Shelves - position above bottom panel
+            for i in range(self.shelves):
+                shelf_z = (
+                    shelf_thickness + (i + 1) * shelf_spacing + (i * shelf_thickness)
+                )
+                ruby_parts.append(
+                    self._create_board_ruby(
+                        name=f"Shelf {i + 1}",
+                        width=interior_width,
+                        height=shelf_thickness,
+                        depth=self.depth,
+                        x=side_thickness,
+                        y=0,
+                        z=shelf_z,
+                    )
+                )
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)
             ruby_code = self._wrap_in_operation(
                 ruby_code,
-                f"Bookshelf {int(self.width)}x{int(self.height)}x{int(self.depth)}"
+                f"Bookshelf {int(self.width)}x{int(self.height)}x{int(self.depth)}",
             )
 
-            return TemplateResult(
-                success=True,
-                ruby_code=ruby_code,
-                cut_list=cut_list
-            )
+            return TemplateResult(success=True, ruby_code=ruby_code, cut_list=cut_list)
 
         except ValueError as e:
             logger.warning(f"Bookshelf template validation error: {e}")
-            return TemplateResult(
-                success=False,
-                error=str(e)
-            )
+            return TemplateResult(success=False, error=str(e))
         except Exception as e:
             logger.exception(f"Bookshelf template unexpected error: {e}")
             raise
