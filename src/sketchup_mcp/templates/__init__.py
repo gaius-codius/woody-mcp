@@ -1,6 +1,6 @@
 """Project templates for woodworking projects."""
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker, JOINT_COLORS
 from .bookshelf import BookshelfTemplate
 from .box import BoxTemplate
 from .table import TableTemplate
@@ -30,6 +30,8 @@ __all__ = [
     "BaseTemplate",
     "TemplateResult",
     "LumberPiece",
+    "JointMarker",
+    "JOINT_COLORS",
     "BookshelfTemplate",
     "BoxTemplate",
     "TableTemplate",

@@ -8,6 +8,43 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger("SketchupMCPServer")
 
 
+# Joint type to color mapping for visual markers
+JOINT_COLORS: Dict[str, str] = {
+    "dado": "#E53935",  # Red
+    "rabbet": "#1E88E5",  # Blue
+    "finger_joint": "#FB8C00",  # Orange
+    "miter": "#8E24AA",  # Purple
+    "mortise_tenon": "#43A047",  # Green
+    "butt": "#757575",  # Gray
+    "bracket": "#FDD835",  # Yellow
+}
+
+
+@dataclass
+class JointMarker:
+    """
+    Declarative specification for a visual joint marker.
+
+    Markers are thin colored rectangles showing where joints should be cut.
+    Templates return lists of JointMarker instances, and the base class
+    handles Ruby code generation uniformly.
+    """
+
+    name: str  # Descriptive name (e.g., "Dado - Shelf 1 Left")
+    joint_type: str  # Key into JOINT_COLORS (e.g., "dado", "rabbet")
+    x: float  # X position in mm
+    y: float  # Y position in mm
+    z: float  # Z position in mm
+    width: float  # Width in mm
+    height: float  # Height in mm (typically 0.5 for thin marker)
+    depth: float  # Depth in mm
+
+    @property
+    def color(self) -> str:
+        """Get the hex color for this joint type."""
+        return JOINT_COLORS.get(self.joint_type, JOINT_COLORS["butt"])
+
+
 @dataclass
 class LumberPiece:
     """
@@ -76,6 +113,7 @@ class BaseTemplate(ABC):
         joinery: Optional[str] = None,
         material: str = "pine",
         region: str = "australia",
+        show_joints: bool = True,
         **kwargs,
     ):
         """
@@ -89,6 +127,7 @@ class BaseTemplate(ABC):
             joinery: Joint type (defaults to template's default_joinery)
             material: Wood species for appearance
             region: Region for lumber standards
+            show_joints: Whether to show visual joint markers (default True)
             **kwargs: Template-specific options
         """
         self.width = float(width)
@@ -98,6 +137,7 @@ class BaseTemplate(ABC):
         self.joinery = joinery or self.default_joinery
         self.material = material
         self.region = region
+        self.show_joints = show_joints
         self.options = kwargs
 
         # Parse lumber dimensions
@@ -186,6 +226,81 @@ if {group_name.lower().replace(" ", "_")}_group
   {group_name.lower().replace(" ", "_")}_group.material = mat
 end
 '''
+
+    def _create_joint_marker_ruby(self, marker: "JointMarker") -> str:
+        """
+        Generate Ruby code to create a visual joint marker.
+
+        Markers are thin colored rectangles showing joint positions.
+        They are created as separate groups with colored materials.
+
+        Args:
+            marker: JointMarker specification with position and dimensions
+
+        Returns:
+            Ruby code string to create the marker
+        """
+        # Sanitize name for Ruby variable
+        var_name = marker.name.lower().replace(" ", "_").replace("-", "_")
+        mat_name = f"Joint_{marker.joint_type}"
+
+        return f'''
+# Create joint marker: {marker.name}
+marker_group = model.active_entities.add_group
+marker_group.name = "Joint: {marker.name}"
+marker_ents = marker_group.entities
+
+marker_pts = [
+  [{self._mm(marker.x)}, {self._mm(marker.y)}, {self._mm(marker.z)}],
+  [{self._mm(marker.x + marker.width)}, {self._mm(marker.y)}, {self._mm(marker.z)}],
+  [{self._mm(marker.x + marker.width)}, {self._mm(marker.y + marker.depth)}, {self._mm(marker.z)}],
+  [{self._mm(marker.x)}, {self._mm(marker.y + marker.depth)}, {self._mm(marker.z)}]
+]
+marker_face = marker_ents.add_face(marker_pts)
+marker_face.reverse! if marker_face.normal.z < 0
+marker_face.pushpull({self._mm(marker.height)})
+
+# Apply colored material
+{var_name}_mat = model.materials["{mat_name}"] || model.materials.add("{mat_name}")
+{var_name}_mat.color = "{marker.color}"
+marker_group.material = {var_name}_mat
+'''
+
+    def _get_joint_markers(self) -> List["JointMarker"]:
+        """
+        Return list of joint markers for this template.
+
+        Override in subclasses to define template-specific marker positions.
+        This is the hook that templates implement to declaratively specify
+        where joint markers should appear.
+
+        Returns:
+            List of JointMarker instances (empty by default)
+        """
+        return []
+
+    def _generate_markers_ruby(self) -> str:
+        """
+        Generate Ruby code for all joint markers if show_joints is enabled.
+
+        Calls _get_joint_markers() to get the declarative marker specs,
+        then generates Ruby code for each marker.
+
+        Returns:
+            Ruby code string for all markers, or empty string if disabled
+        """
+        if not self.show_joints:
+            return ""
+
+        markers = self._get_joint_markers()
+        if not markers:
+            return ""
+
+        ruby_parts = ["\n# Joint markers"]
+        for marker in markers:
+            ruby_parts.append(self._create_joint_marker_ruby(marker))
+
+        return "\n".join(ruby_parts)
 
     def _wrap_in_operation(self, ruby_code: str, operation_name: str) -> str:
         """Wrap Ruby code in an undo operation."""

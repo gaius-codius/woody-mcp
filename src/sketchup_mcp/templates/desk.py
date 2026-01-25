@@ -1,9 +1,9 @@
 """Desk template - writing or computer desk with optional drawers."""
 
 import logging
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -61,6 +61,56 @@ class DeskTemplate(BaseTemplate):
         self.has_keyboard_tray = has_keyboard_tray
         self.has_back_panel = has_back_panel
 
+        # Store computed dimensions for _get_joint_markers()
+        self._panel_thickness: float = 0
+        self._leg_panel_height: float = 0
+        self._leg_panel_depth: float = 0
+        self._rail_z: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return dado joint markers for desk rail connections.
+
+        Markers appear on leg panels where rails connect.
+        """
+        if self._panel_thickness <= 0:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+        panel = self._panel_thickness
+        rail_width = self.lumber_width
+
+        # Left leg panel - rail dado
+        markers.append(
+            JointMarker(
+                name="Left Panel Rail Dado",
+                joint_type=self.joinery,
+                x=panel,
+                y=self.depth - panel,
+                z=self._rail_z,
+                width=marker_thickness,
+                height=rail_width,
+                depth=panel,
+            )
+        )
+
+        # Right leg panel - rail dado
+        markers.append(
+            JointMarker(
+                name="Right Panel Rail Dado",
+                joint_type=self.joinery,
+                x=self.width - panel - marker_thickness,
+                y=self.depth - panel,
+                z=self._rail_z,
+                width=marker_thickness,
+                height=rail_width,
+                depth=panel,
+            )
+        )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate desk Ruby code and cut list."""
         try:
@@ -89,6 +139,12 @@ class DeskTemplate(BaseTemplate):
                     error=f"Desk height {self.height}mm too small. Minimum: {desktop_thickness + 400}mm",
                 )
 
+            # Store dimensions for _get_joint_markers()
+            self._panel_thickness = panel_thickness
+            self._leg_panel_height = leg_panel_height
+            self._leg_panel_depth = leg_panel_depth
+            self._rail_z = leg_panel_height - self.lumber_width - 50
+
             # Calculate knee space (between leg panels)
             left_drawer = self.has_drawer and self.drawer_side in ["left", "both"]
             right_drawer = self.has_drawer and self.drawer_side in ["right", "both"]
@@ -114,7 +170,7 @@ class DeskTemplate(BaseTemplate):
                     length=leg_panel_height,
                     quantity=2,
                     material=self.material,
-                    notes="Left and right leg panels",
+                    notes=f"Left and right leg panels, {self.joinery} joints (red markers)",
                 ),
                 LumberPiece(
                     name="Back Rail",
@@ -311,6 +367,9 @@ class DeskTemplate(BaseTemplate):
                         z=100,
                     )
                 )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)

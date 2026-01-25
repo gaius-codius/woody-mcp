@@ -2,9 +2,9 @@
 
 import logging
 import math
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -59,6 +59,41 @@ class ShelfBracketTemplate(BaseTemplate):
         self.bracket_count = max(2, int(bracket_count))
         self.has_shelf = has_shelf
 
+        # Store computed dimensions for _get_joint_markers()
+        self._bracket_positions: List[float] = []
+        self._board_thickness: float = 0
+        self._board_width: float = 0
+        self._vertical_length: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return bracket joint markers where shelf meets brackets.
+
+        Markers appear on bracket horizontals where shelf sits.
+        """
+        if not self._bracket_positions or self._board_thickness <= 0:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+
+        for i, bracket_x in enumerate(self._bracket_positions):
+            # Marker on top of horizontal where shelf sits
+            markers.append(
+                JointMarker(
+                    name=f"Bracket {i + 1} Shelf",
+                    joint_type=self.joinery,
+                    x=bracket_x,
+                    y=0,
+                    z=self._vertical_length,
+                    width=self._board_thickness,
+                    height=marker_thickness,
+                    depth=self.depth,
+                )
+            )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate shelf bracket Ruby code and cut list."""
         try:
@@ -91,6 +126,15 @@ class ShelfBracketTemplate(BaseTemplate):
                     success=False,
                     error=f"Bracket depth {horizontal_length}mm too small. Minimum: 100mm",
                 )
+
+            # Store dimensions for _get_joint_markers()
+            self._board_thickness = board_thickness
+            self._board_width = board_width
+            self._vertical_length = vertical_length
+            self._bracket_positions = [
+                i * bracket_spacing if self.bracket_count > 1 else 0
+                for i in range(self.bracket_count)
+            ]
 
             # Build cut list
             cut_list = []
@@ -172,7 +216,7 @@ class ShelfBracketTemplate(BaseTemplate):
                         length=shelf_depth,
                         quantity=1,
                         material=self.material,
-                        notes="Sits on bracket horizontals",
+                        notes="Sits on bracket horizontals (yellow markers)",
                     )
                 )
 
@@ -280,6 +324,9 @@ class ShelfBracketTemplate(BaseTemplate):
                         z=vertical_length,
                     )
                 )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)
