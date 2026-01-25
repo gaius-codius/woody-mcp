@@ -1,9 +1,9 @@
 """Table template - dining, coffee, and end tables with aprons."""
 
 import logging
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -76,6 +76,183 @@ class TableTemplate(BaseTemplate):
         self.has_stretchers = has_stretchers
         self.leg_inset = leg_inset
 
+        # Store computed dimensions for _get_joint_markers()
+        self._leg_size: float = 0
+        self._leg_height: float = 0
+        self._apron_height: float = 0
+        self._apron_thickness: float = 0
+        self._leg_x_positions: List[float] = []
+        self._leg_y_positions: List[float] = []
+        self._apron_z: float = 0
+        self._stretcher_z: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return mortise-tenon joint markers for leg-to-apron connections.
+
+        Markers appear on leg faces where aprons and stretchers connect.
+        Each leg can have up to 4 joint markers (2 aprons + 2 stretchers).
+        """
+        if self._leg_size <= 0 or not self._leg_x_positions:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+        leg = self._leg_size
+        apron_h = self._apron_height
+
+        # Leg corner positions: [(x, y, front_face_dir, side_face_dir), ...]
+        # front_face_dir: 'front' or 'back' indicates which Y direction the front-facing face is
+        # side_face_dir: 'left' or 'right' indicates which X direction the side-facing face is
+        leg_configs = [
+            (
+                self._leg_x_positions[0],
+                self._leg_y_positions[0],
+                "front",
+                "left",
+            ),  # Front-left
+            (
+                self._leg_x_positions[1],
+                self._leg_y_positions[0],
+                "front",
+                "right",
+            ),  # Front-right
+            (
+                self._leg_x_positions[0],
+                self._leg_y_positions[1],
+                "back",
+                "left",
+            ),  # Back-left
+            (
+                self._leg_x_positions[1],
+                self._leg_y_positions[1],
+                "back",
+                "right",
+            ),  # Back-right
+        ]
+
+        for i, (lx, ly, front_dir, side_dir) in enumerate(leg_configs):
+            leg_num = i + 1
+
+            if self.has_aprons:
+                # Front/back apron marker on leg
+                if front_dir == "front":
+                    # Marker on front face of leg (y = ly)
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Front Apron",
+                            joint_type=self.joinery,
+                            x=lx,
+                            y=ly - marker_thickness,
+                            z=self._apron_z,
+                            width=leg,
+                            height=apron_h,
+                            depth=marker_thickness,
+                        )
+                    )
+                else:
+                    # Marker on back face of leg (y = ly + leg)
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Back Apron",
+                            joint_type=self.joinery,
+                            x=lx,
+                            y=ly + leg,
+                            z=self._apron_z,
+                            width=leg,
+                            height=apron_h,
+                            depth=marker_thickness,
+                        )
+                    )
+
+                # Side apron marker on leg
+                if side_dir == "left":
+                    # Marker on left face of leg (x = lx)
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Side Apron",
+                            joint_type=self.joinery,
+                            x=lx - marker_thickness,
+                            y=ly,
+                            z=self._apron_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+                else:
+                    # Marker on right face of leg (x = lx + leg)
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Side Apron",
+                            joint_type=self.joinery,
+                            x=lx + leg,
+                            y=ly,
+                            z=self._apron_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+
+            if self.has_stretchers and self._stretcher_z > 0:
+                # Similar pattern for stretchers at lower position
+                if front_dir == "front":
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Front Stretcher",
+                            joint_type=self.joinery,
+                            x=lx,
+                            y=ly - marker_thickness,
+                            z=self._stretcher_z,
+                            width=leg,
+                            height=apron_h,
+                            depth=marker_thickness,
+                        )
+                    )
+                else:
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Back Stretcher",
+                            joint_type=self.joinery,
+                            x=lx,
+                            y=ly + leg,
+                            z=self._stretcher_z,
+                            width=leg,
+                            height=apron_h,
+                            depth=marker_thickness,
+                        )
+                    )
+
+                if side_dir == "left":
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Side Stretcher",
+                            joint_type=self.joinery,
+                            x=lx - marker_thickness,
+                            y=ly,
+                            z=self._stretcher_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+                else:
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {leg_num} Side Stretcher",
+                            joint_type=self.joinery,
+                            x=lx + leg,
+                            y=ly,
+                            z=self._stretcher_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate table Ruby code and cut list."""
         try:
@@ -112,6 +289,18 @@ class TableTemplate(BaseTemplate):
                     f"Minimum height: {tabletop_thickness + apron_height + 50}mm",
                 )
 
+            # Store dimensions for _get_joint_markers()
+            self._leg_size = leg_size
+            self._leg_height = leg_height
+            self._apron_height = apron_height
+            self._apron_thickness = apron_thickness
+            self._leg_x_positions = leg_x_positions
+            self._leg_y_positions = leg_y_positions
+            self._apron_z = leg_height - apron_height if self.has_aprons else 0
+            self._stretcher_z = (
+                leg_height / 3 - apron_height / 2 if self.has_stretchers else 0
+            )
+
             # Build cut list
             cut_list = [
                 LumberPiece(
@@ -130,7 +319,7 @@ class TableTemplate(BaseTemplate):
                     length=leg_height,
                     quantity=4,
                     material=self.material,
-                    notes=f"Square legs, {self.joinery} joints",
+                    notes=f"Square legs, {self.joinery} joints (green markers)",
                 ),
             ]
 
@@ -144,7 +333,7 @@ class TableTemplate(BaseTemplate):
                             length=long_apron_length,
                             quantity=2,
                             material=self.material,
-                            notes=f"Front and back aprons, {self.joinery}",
+                            notes=f"Front and back aprons, {self.joinery} (green markers)",
                         ),
                         LumberPiece(
                             name="Short Apron",
@@ -153,7 +342,7 @@ class TableTemplate(BaseTemplate):
                             length=short_apron_length,
                             quantity=2,
                             material=self.material,
-                            notes=f"Side aprons, {self.joinery}",
+                            notes=f"Side aprons, {self.joinery} (green markers)",
                         ),
                     ]
                 )
@@ -331,6 +520,9 @@ class TableTemplate(BaseTemplate):
                         z=stretcher_z,
                     )
                 )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)

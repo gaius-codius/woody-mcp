@@ -1,9 +1,9 @@
 """Box template - storage boxes with panels positioned for finger joint assembly."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -52,6 +52,137 @@ class BoxTemplate(BaseTemplate):
         )
         self.has_lid = has_lid
 
+        # Store computed dimensions for _get_joint_markers()
+        self._box_height: float = 0
+        self._wall_thickness: float = 0
+        self._bottom_thickness: float = 0
+        self._interior_depth: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return joint markers for box corners and bottom edges.
+
+        Corner joints (finger_joint or rabbet) shown at 4 vertical corners.
+        Bottom rabbet shown where bottom panel meets walls.
+        """
+        if self._box_height <= 0:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+        wall = self._wall_thickness
+        bottom_z = self._bottom_thickness
+
+        # Corner joint markers - vertical strips at each corner
+        # Front-left corner
+        markers.append(
+            JointMarker(
+                name="Corner Front-Left",
+                joint_type=self.joinery,
+                x=0,
+                y=wall - marker_thickness,
+                z=bottom_z,
+                width=wall,
+                height=self._box_height,
+                depth=marker_thickness,
+            )
+        )
+        # Front-right corner
+        markers.append(
+            JointMarker(
+                name="Corner Front-Right",
+                joint_type=self.joinery,
+                x=self.width - wall,
+                y=wall - marker_thickness,
+                z=bottom_z,
+                width=wall,
+                height=self._box_height,
+                depth=marker_thickness,
+            )
+        )
+        # Back-left corner
+        markers.append(
+            JointMarker(
+                name="Corner Back-Left",
+                joint_type=self.joinery,
+                x=0,
+                y=self.depth - wall,
+                z=bottom_z,
+                width=wall,
+                height=self._box_height,
+                depth=marker_thickness,
+            )
+        )
+        # Back-right corner
+        markers.append(
+            JointMarker(
+                name="Corner Back-Right",
+                joint_type=self.joinery,
+                x=self.width - wall,
+                y=self.depth - wall,
+                z=bottom_z,
+                width=wall,
+                height=self._box_height,
+                depth=marker_thickness,
+            )
+        )
+
+        # Bottom rabbet markers - where bottom sits inside walls
+        # Front edge
+        markers.append(
+            JointMarker(
+                name="Bottom Front",
+                joint_type="rabbet",
+                x=wall,
+                y=wall,
+                z=bottom_z - marker_thickness,
+                width=self.width - 2 * wall,
+                height=marker_thickness,
+                depth=marker_thickness,
+            )
+        )
+        # Back edge
+        markers.append(
+            JointMarker(
+                name="Bottom Back",
+                joint_type="rabbet",
+                x=wall,
+                y=self.depth - wall - marker_thickness,
+                z=bottom_z - marker_thickness,
+                width=self.width - 2 * wall,
+                height=marker_thickness,
+                depth=marker_thickness,
+            )
+        )
+        # Left edge
+        markers.append(
+            JointMarker(
+                name="Bottom Left",
+                joint_type="rabbet",
+                x=wall,
+                y=wall,
+                z=bottom_z - marker_thickness,
+                width=marker_thickness,
+                height=marker_thickness,
+                depth=self._interior_depth,
+            )
+        )
+        # Right edge
+        markers.append(
+            JointMarker(
+                name="Bottom Right",
+                joint_type="rabbet",
+                x=self.width - wall - marker_thickness,
+                y=wall,
+                z=bottom_z - marker_thickness,
+                width=marker_thickness,
+                height=marker_thickness,
+                depth=self._interior_depth,
+            )
+        )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate box Ruby code and cut list."""
         try:
@@ -87,6 +218,12 @@ class BoxTemplate(BaseTemplate):
                     f"Minimum required: {min_dim}mm",
                 )
 
+            # Store dimensions for _get_joint_markers()
+            self._box_height = box_height
+            self._wall_thickness = wall_thickness
+            self._bottom_thickness = bottom_thickness
+            self._interior_depth = interior_depth
+
             # Build cut list
             cut_list = [
                 LumberPiece(
@@ -96,7 +233,7 @@ class BoxTemplate(BaseTemplate):
                     length=box_height,
                     quantity=2,
                     material=self.material,
-                    notes=f"Front and back, {self.joinery}",
+                    notes=f"Front and back, {self.joinery} (orange markers)",
                 ),
                 LumberPiece(
                     name="Side Panel",
@@ -105,7 +242,7 @@ class BoxTemplate(BaseTemplate):
                     length=box_height,
                     quantity=2,
                     material=self.material,
-                    notes=f"Left and right sides, {self.joinery}",
+                    notes=f"Left and right sides, {self.joinery} (orange markers)",
                 ),
                 LumberPiece(
                     name="Bottom",
@@ -114,7 +251,7 @@ class BoxTemplate(BaseTemplate):
                     length=interior_depth,
                     quantity=1,
                     material=self.material,
-                    notes="Bottom panel, sized to fit inside walls",
+                    notes="Bottom panel, rabbet joints (blue markers)",
                 ),
             ]
 
@@ -213,6 +350,9 @@ class BoxTemplate(BaseTemplate):
                         z=lid_z,
                     )
                 )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)

@@ -1,9 +1,9 @@
 """Bookshelf template - shelves positioned for dado joint assembly."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -51,6 +51,55 @@ class BookshelfTemplate(BaseTemplate):
             **kwargs,
         )
         self.shelves = max(1, int(shelves))
+
+        # Store computed dimensions for _get_joint_markers()
+        self._shelf_positions: List[float] = []
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return dado joint markers for shelf positions on side panels.
+
+        Markers appear on the inner face of left and right sides at each
+        shelf, top, and bottom position. Marker width matches shelf thickness
+        to show the dado groove width.
+        """
+        if not self._shelf_positions:
+            return []
+
+        markers = []
+        side_thickness = self.lumber_thickness
+        shelf_thickness = self.lumber_thickness
+        marker_thickness = 0.5  # Thin visual marker
+
+        for i, shelf_z in enumerate(self._shelf_positions):
+            # Left side marker (on inner face, so at x = side_thickness - marker_thickness)
+            markers.append(
+                JointMarker(
+                    name=f"Dado Left {i + 1}",
+                    joint_type=self.joinery,
+                    x=side_thickness - marker_thickness,
+                    y=0,
+                    z=shelf_z,
+                    width=marker_thickness,
+                    height=shelf_thickness,
+                    depth=self.depth,
+                )
+            )
+            # Right side marker (on inner face)
+            markers.append(
+                JointMarker(
+                    name=f"Dado Right {i + 1}",
+                    joint_type=self.joinery,
+                    x=self.width - side_thickness,
+                    y=0,
+                    z=shelf_z,
+                    width=marker_thickness,
+                    height=shelf_thickness,
+                    depth=self.depth,
+                )
+            )
+
+        return markers
 
     def generate(self) -> TemplateResult:
         """Generate bookshelf Ruby code and cut list."""
@@ -100,7 +149,7 @@ class BookshelfTemplate(BaseTemplate):
                     length=self.depth,
                     quantity=self.shelves,
                     material=self.material,
-                    notes=f"Fixed shelves, {self.joinery} joints",
+                    notes=f"Fixed shelves, {self.joinery} joints (red markers)",
                 ),
                 LumberPiece(
                     name="Top Panel",
@@ -178,10 +227,13 @@ class BookshelfTemplate(BaseTemplate):
             )
 
             # Shelves - position above bottom panel
+            # Store positions for joint markers
+            self._shelf_positions = [0.0]  # Bottom panel position
             for i in range(self.shelves):
                 shelf_z = (
                     shelf_thickness + (i + 1) * shelf_spacing + (i * shelf_thickness)
                 )
+                self._shelf_positions.append(shelf_z)
                 ruby_parts.append(
                     self._create_board_ruby(
                         name=f"Shelf {i + 1}",
@@ -193,6 +245,10 @@ class BookshelfTemplate(BaseTemplate):
                         z=shelf_z,
                     )
                 )
+            self._shelf_positions.append(self.height - shelf_thickness)  # Top position
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)

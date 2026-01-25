@@ -1,9 +1,9 @@
 """Tray template - serving tray with handles and optional dividers."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -63,6 +63,99 @@ class TrayTemplate(BaseTemplate):
         self.has_dividers = has_dividers
         self.divider_count = max(1, int(divider_count))
 
+        # Store computed dimensions for _get_joint_markers()
+        self._wall_thickness: float = 0
+        self._bottom_thickness: float = 0
+        self._interior_width: float = 0
+        self._interior_depth: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return rabbet joint markers for tray corners and bottom.
+
+        Tray uses rabbet joints at corners (blue markers) where
+        end walls meet long walls, and for bottom panel.
+        """
+        if self._wall_thickness <= 0:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+        wt = self._wall_thickness
+        bt = self._bottom_thickness
+        wh = self.wall_height
+
+        # Corner rabbets - where end walls meet long walls
+        # Front-left corner
+        markers.append(
+            JointMarker(
+                name="Corner Front-Left",
+                joint_type=self.joinery,
+                x=wt - marker_thickness,
+                y=0,
+                z=bt,
+                width=marker_thickness,
+                height=wh,
+                depth=wt,
+            )
+        )
+        # Front-right corner
+        markers.append(
+            JointMarker(
+                name="Corner Front-Right",
+                joint_type=self.joinery,
+                x=self.width - wt,
+                y=0,
+                z=bt,
+                width=marker_thickness,
+                height=wh,
+                depth=wt,
+            )
+        )
+        # Back-left corner
+        markers.append(
+            JointMarker(
+                name="Corner Back-Left",
+                joint_type=self.joinery,
+                x=wt - marker_thickness,
+                y=self.depth - wt,
+                z=bt,
+                width=marker_thickness,
+                height=wh,
+                depth=wt,
+            )
+        )
+        # Back-right corner
+        markers.append(
+            JointMarker(
+                name="Corner Back-Right",
+                joint_type=self.joinery,
+                x=self.width - wt,
+                y=self.depth - wt,
+                z=bt,
+                width=marker_thickness,
+                height=wh,
+                depth=wt,
+            )
+        )
+
+        # Bottom rabbet markers
+        # Front edge
+        markers.append(
+            JointMarker(
+                name="Bottom Front Rabbet",
+                joint_type=self.joinery,
+                x=wt,
+                y=wt,
+                z=bt - marker_thickness,
+                width=self._interior_width,
+                height=marker_thickness,
+                depth=marker_thickness,
+            )
+        )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate tray Ruby code and cut list."""
         try:
@@ -88,6 +181,12 @@ class TrayTemplate(BaseTemplate):
                     error=f"Wall height {self.wall_height}mm too small. Minimum: 20mm",
                 )
 
+            # Store dimensions for _get_joint_markers()
+            self._wall_thickness = wall_thickness
+            self._bottom_thickness = bottom_thickness
+            self._interior_width = interior_width
+            self._interior_depth = interior_depth
+
             # Build cut list
             cut_list = [
                 LumberPiece(
@@ -97,7 +196,7 @@ class TrayTemplate(BaseTemplate):
                     length=interior_depth,
                     quantity=1,
                     material=self.material,
-                    notes="Bottom panel, rabbeted into walls",
+                    notes="Bottom panel, rabbeted into walls (blue markers)",
                 ),
                 LumberPiece(
                     name="Long Wall",
@@ -106,7 +205,7 @@ class TrayTemplate(BaseTemplate):
                     length=self.wall_height,
                     quantity=2,
                     material=self.material,
-                    notes=f"Front and back walls, {self.joinery} corners",
+                    notes=f"Front and back walls, {self.joinery} corners (blue markers)",
                 ),
                 LumberPiece(
                     name="End Wall",
@@ -221,6 +320,9 @@ class TrayTemplate(BaseTemplate):
                             z=bottom_thickness,
                         )
                     )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)

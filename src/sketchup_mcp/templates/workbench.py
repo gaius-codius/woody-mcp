@@ -1,9 +1,9 @@
 """Workbench template - heavy-duty workshop workbench."""
 
 import logging
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -61,6 +61,124 @@ class WorkbenchTemplate(BaseTemplate):
         self.apron_style = apron_style
         self.top_thickness = max(45, top_thickness)  # Minimum 45mm for workbench
 
+        # Store computed dimensions for _get_joint_markers()
+        self._leg_size: float = 0
+        self._apron_height: float = 0
+        self._leg_x_positions: List[float] = []
+        self._leg_y_positions: List[float] = []
+        self._apron_z: float = 0
+        self._stretcher_z: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return mortise-tenon joint markers for leg-to-apron/stretcher connections.
+
+        Workbench has same joint pattern as table but supports 4 or 6 legs.
+        """
+        if self._leg_size <= 0 or not self._leg_x_positions:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+        leg = self._leg_size
+        apron_h = self._apron_height
+
+        # For each leg, add markers on exposed faces
+        for xi, lx in enumerate(self._leg_x_positions):
+            for yi, ly in enumerate(self._leg_y_positions):
+                # Determine which faces have aprons based on leg position
+                is_left = xi == 0
+                is_right = xi == len(self._leg_x_positions) - 1
+                is_front = yi == 0
+                is_back = yi == 1
+
+                # Front/back faces (Y direction)
+                if is_front:
+                    # Front face marker
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {xi + yi * len(self._leg_x_positions) + 1} Front",
+                            joint_type=self.joinery,
+                            x=lx,
+                            y=ly - marker_thickness,
+                            z=self._apron_z,
+                            width=leg,
+                            height=apron_h,
+                            depth=marker_thickness,
+                        )
+                    )
+                if is_back:
+                    # Back face marker
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {xi + yi * len(self._leg_x_positions) + 1} Back",
+                            joint_type=self.joinery,
+                            x=lx,
+                            y=ly + leg,
+                            z=self._apron_z,
+                            width=leg,
+                            height=apron_h,
+                            depth=marker_thickness,
+                        )
+                    )
+
+                # Side faces (X direction) - only for end legs
+                if is_left:
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {xi + yi * len(self._leg_x_positions) + 1} Left",
+                            joint_type=self.joinery,
+                            x=lx - marker_thickness,
+                            y=ly,
+                            z=self._apron_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+                if is_right:
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {xi + yi * len(self._leg_x_positions) + 1} Right",
+                            joint_type=self.joinery,
+                            x=lx + leg,
+                            y=ly,
+                            z=self._apron_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+
+                # Middle legs get aprons on both X-facing sides
+                if not is_left and not is_right:
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {xi + yi * len(self._leg_x_positions) + 1} Inner Left",
+                            joint_type=self.joinery,
+                            x=lx - marker_thickness,
+                            y=ly,
+                            z=self._apron_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+                    markers.append(
+                        JointMarker(
+                            name=f"Leg {xi + yi * len(self._leg_x_positions) + 1} Inner Right",
+                            joint_type=self.joinery,
+                            x=lx + leg,
+                            y=ly,
+                            z=self._apron_z,
+                            width=marker_thickness,
+                            height=apron_h,
+                            depth=leg,
+                        )
+                    )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate workbench Ruby code and cut list."""
         try:
@@ -114,6 +232,14 @@ class WorkbenchTemplate(BaseTemplate):
                     f"Minimum: {self.top_thickness + apron_height + 200}mm",
                 )
 
+            # Store dimensions for _get_joint_markers()
+            self._leg_size = leg_size
+            self._apron_height = apron_height
+            self._leg_x_positions = leg_x_positions
+            self._leg_y_positions = leg_y_positions
+            self._apron_z = leg_height - apron_height
+            self._stretcher_z = shelf_z - apron_height
+
             # Build cut list
             cut_list = [
                 LumberPiece(
@@ -132,7 +258,7 @@ class WorkbenchTemplate(BaseTemplate):
                     length=leg_height,
                     quantity=self.leg_count,
                     material=self.material,
-                    notes=f"Heavy square legs, {self.joinery} joints",
+                    notes=f"Heavy square legs, {self.joinery} joints (green markers)",
                 ),
             ]
 
@@ -384,6 +510,9 @@ class WorkbenchTemplate(BaseTemplate):
                         z=shelf_z,
                     )
                 )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)

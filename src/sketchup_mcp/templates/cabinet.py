@@ -1,9 +1,9 @@
 """Cabinet template - storage cabinet with optional doors and shelves."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -64,6 +64,86 @@ class CabinetTemplate(BaseTemplate):
         self.has_base = has_base
         self.base_height = base_height
 
+        # Store computed dimensions for _get_joint_markers()
+        self._shelf_positions: List[float] = []
+        self._panel_thickness: float = 0
+        self._base_z: float = 0
+        self._carcass_height: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return dado joint markers for shelf and panel positions.
+
+        Markers appear on inner face of side panels where shelves,
+        top, and bottom connect.
+        """
+        if not self._shelf_positions or self._panel_thickness <= 0:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+        panel = self._panel_thickness
+
+        for i, shelf_z in enumerate(self._shelf_positions):
+            # Left side marker
+            markers.append(
+                JointMarker(
+                    name=f"Dado Left {i + 1}",
+                    joint_type=self.joinery,
+                    x=panel - marker_thickness,
+                    y=0,
+                    z=shelf_z,
+                    width=marker_thickness,
+                    height=panel,
+                    depth=self.depth,
+                )
+            )
+            # Right side marker
+            markers.append(
+                JointMarker(
+                    name=f"Dado Right {i + 1}",
+                    joint_type=self.joinery,
+                    x=self.width - panel,
+                    y=0,
+                    z=shelf_z,
+                    width=marker_thickness,
+                    height=panel,
+                    depth=self.depth,
+                )
+            )
+
+        # Back panel rabbet markers on sides
+        back_z = self._base_z + panel
+        back_height = self._carcass_height - 2 * panel
+        # Left side rabbet for back
+        markers.append(
+            JointMarker(
+                name="Rabbet Left Back",
+                joint_type="rabbet",
+                x=panel - marker_thickness,
+                y=self.depth - panel,
+                z=back_z,
+                width=marker_thickness,
+                height=back_height,
+                depth=panel,
+            )
+        )
+        # Right side rabbet for back
+        markers.append(
+            JointMarker(
+                name="Rabbet Right Back",
+                joint_type="rabbet",
+                x=self.width - panel,
+                y=self.depth - panel,
+                z=back_z,
+                width=marker_thickness,
+                height=back_height,
+                depth=panel,
+            )
+        )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate cabinet Ruby code and cut list."""
         try:
@@ -104,6 +184,19 @@ class CabinetTemplate(BaseTemplate):
             )
             door_height = carcass_height
 
+            # Store dimensions for _get_joint_markers()
+            base_z = self.base_height if self.has_base else 0
+            self._panel_thickness = panel_thickness
+            self._base_z = base_z
+            self._carcass_height = carcass_height
+            self._shelf_positions = [base_z]  # Bottom
+            for i in range(self.shelf_count):
+                shelf_z = base_z + panel_thickness + (i + 1) * shelf_spacing
+                self._shelf_positions.append(shelf_z)
+            self._shelf_positions.append(
+                base_z + carcass_height - panel_thickness
+            )  # Top
+
             # Build cut list
             cut_list = [
                 LumberPiece(
@@ -113,7 +206,7 @@ class CabinetTemplate(BaseTemplate):
                     length=self.depth,
                     quantity=2,
                     material=self.material,
-                    notes=f"Left and right sides, {self.joinery} for shelves",
+                    notes=f"Left and right sides, {self.joinery} for shelves (red markers)",
                 ),
                 LumberPiece(
                     name="Top Panel",
@@ -140,7 +233,7 @@ class CabinetTemplate(BaseTemplate):
                     length=carcass_height - (2 * panel_thickness),
                     quantity=1,
                     material=self.material,
-                    notes="Back panel, rabbeted into sides",
+                    notes="Back panel, rabbeted into sides (blue markers)",
                 ),
             ]
 
@@ -153,7 +246,7 @@ class CabinetTemplate(BaseTemplate):
                         length=interior_depth - 10,  # Slight inset from front
                         quantity=self.shelf_count,
                         material=self.material,
-                        notes=f"Adjustable shelves, {self.joinery}",
+                        notes=f"Adjustable shelves, {self.joinery} (red markers)",
                     )
                 )
 
@@ -300,6 +393,9 @@ class CabinetTemplate(BaseTemplate):
                             z=base_z + (door_gap / 2),
                         )
                     )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)

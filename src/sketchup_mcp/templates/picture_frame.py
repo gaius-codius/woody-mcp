@@ -1,9 +1,9 @@
 """Picture frame template - frame with rabbet for glass and backing."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
-from .base import BaseTemplate, TemplateResult, LumberPiece
+from .base import BaseTemplate, TemplateResult, LumberPiece, JointMarker
 
 logger = logging.getLogger("SketchupMCPServer")
 
@@ -58,6 +58,111 @@ class PictureFrameTemplate(BaseTemplate):
         self.rabbet_depth = min(rabbet_depth, depth - 5)  # Leave 5mm face
         self.mat_width = mat_width
 
+        # Store computed dimensions for _get_joint_markers()
+        self._inner_width: float = 0
+        self._inner_height: float = 0
+        self._frame_thickness: float = 0
+
+    def _get_joint_markers(self) -> List[JointMarker]:
+        """
+        Return miter joint markers at frame corners and rabbet markers.
+
+        Picture frames use miter joints at corners (purple) and rabbet
+        along inner edge (blue) for glass/backing.
+        """
+        if self._inner_width <= 0:
+            return []
+
+        markers = []
+        marker_thickness = 0.5
+        fw = self.frame_width
+        ft = self._frame_thickness
+
+        # Miter markers at 4 corners (on the corner edges)
+        # Top-left corner
+        markers.append(
+            JointMarker(
+                name="Miter Top-Left",
+                joint_type="miter",
+                x=0,
+                y=0,
+                z=self.height - fw,
+                width=fw,
+                height=marker_thickness,
+                depth=fw,
+            )
+        )
+        # Top-right corner
+        markers.append(
+            JointMarker(
+                name="Miter Top-Right",
+                joint_type="miter",
+                x=self.width - fw,
+                y=0,
+                z=self.height - fw,
+                width=fw,
+                height=marker_thickness,
+                depth=fw,
+            )
+        )
+        # Bottom-left corner
+        markers.append(
+            JointMarker(
+                name="Miter Bottom-Left",
+                joint_type="miter",
+                x=0,
+                y=0,
+                z=0,
+                width=fw,
+                height=marker_thickness,
+                depth=fw,
+            )
+        )
+        # Bottom-right corner
+        markers.append(
+            JointMarker(
+                name="Miter Bottom-Right",
+                joint_type="miter",
+                x=self.width - fw,
+                y=0,
+                z=0,
+                width=fw,
+                height=marker_thickness,
+                depth=fw,
+            )
+        )
+
+        # Rabbet markers along inner edge (where glass sits)
+        rabbet_y = ft - self.rabbet_depth
+        # Top rabbet
+        markers.append(
+            JointMarker(
+                name="Rabbet Top",
+                joint_type="rabbet",
+                x=fw,
+                y=rabbet_y,
+                z=self.height - fw - marker_thickness,
+                width=self._inner_width,
+                height=marker_thickness,
+                depth=self.rabbet_depth,
+            )
+        )
+        # Bottom rabbet
+        markers.append(
+            JointMarker(
+                name="Rabbet Bottom",
+                joint_type="rabbet",
+                x=fw,
+                y=rabbet_y,
+                z=fw,
+                width=self._inner_width,
+                height=marker_thickness,
+                depth=self.rabbet_depth,
+            )
+        )
+
+        return markers
+
     def generate(self) -> TemplateResult:
         """Generate picture frame Ruby code and cut list."""
         try:
@@ -91,6 +196,11 @@ class PictureFrameTemplate(BaseTemplate):
                     f"({inner_width}x{inner_height}mm). Reduce mat or increase frame size.",
                 )
 
+            # Store dimensions for _get_joint_markers()
+            self._inner_width = inner_width
+            self._inner_height = inner_height
+            self._frame_thickness = frame_thickness
+
             # Rail lengths (long dimension for mitered pieces)
             # For miter joints, length is outer dimension
             top_bottom_length = self.width
@@ -105,7 +215,7 @@ class PictureFrameTemplate(BaseTemplate):
                     length=top_bottom_length,
                     quantity=2,
                     material=self.material,
-                    notes=f"45° miter cuts both ends, {self.rabbet_depth}mm rabbet",
+                    notes=f"45° miter cuts (purple markers), {self.rabbet_depth}mm rabbet (blue markers)",
                 ),
                 LumberPiece(
                     name="Side Rail",
@@ -114,7 +224,7 @@ class PictureFrameTemplate(BaseTemplate):
                     length=side_length,
                     quantity=2,
                     material=self.material,
-                    notes=f"45° miter cuts both ends, {self.rabbet_depth}mm rabbet",
+                    notes=f"45° miter cuts (purple markers), {self.rabbet_depth}mm rabbet (blue markers)",
                 ),
                 LumberPiece(
                     name="Glass",
@@ -230,6 +340,9 @@ class PictureFrameTemplate(BaseTemplate):
                     z=self.frame_width - 2,
                 )
             )
+
+            # Add joint markers
+            ruby_parts.append(self._generate_markers_ruby())
 
             # Combine and wrap
             ruby_code = "\n".join(ruby_parts)
